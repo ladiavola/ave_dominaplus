@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import xml.etree.ElementTree as ET
 from types import MappingProxyType
 from typing import Any
 
@@ -51,6 +52,7 @@ class AveWebServer:
             self.settings.fetch_lights = settings_data["fetch_lights"]
         except KeyError as e:
             _LOGGER.error("Missing key in settings data: %s", e)
+        self.mac_address = ""
         self.hass = hass
         self.ws_conn: Any = None
         self._connected = False
@@ -96,6 +98,7 @@ class AveWebServer:
                 protocols=["binary"],
             )
             self._connected = True
+            self.mac_address = await self.tryget_mac_address()
             _LOGGER.debug("Connected to WebSocket server at %s", self.settings.host)
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("Failed to connect to WebSocket server: %s", err)
@@ -222,8 +225,8 @@ class AveWebServer:
         full_message = message + crc + chr(0x04)
         if self.ws_conn and not self.ws_conn.closed:
             await self.ws_conn.send_str(full_message)
-            #escaped_message = full_message.encode("unicode_escape").decode("ascii")
-            #_LOGGER.debug("Sent command: %s", escaped_message)
+            # escaped_message = full_message.encode("unicode_escape").decode("ascii")
+            # _LOGGER.debug("Sent command: %s", escaped_message)
         else:
             _LOGGER.error("WebSocket is not connected")
 
@@ -430,6 +433,38 @@ class AveWebServer:
             except Exception as err:  # noqa: BLE001
                 _LOGGER.error("Error calling bridge: %s", err)
                 return 900, None
+
+    async def tryget_mac_address(self) -> str | None:
+        async with aiohttp.ClientSession() as session:
+            try:
+                url = f"http://{self.settings.host}/revealcode.php"
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.text()
+                        _LOGGER.debug("revealcode response: %s", data)
+
+                        try:
+                            root = ET.fromstring(data)
+                            xml_mac = root.findtext("macaddress")
+                            if xml_mac:
+                                return xml_mac.strip().lower()
+                        except ET.ParseError as err:
+                            _LOGGER.error(
+                                "Invalid XML in revealcode response: %s",
+                                err,
+                            )
+                        _LOGGER.warning(
+                            "No macaddress tag found in revealcode response"
+                        )
+                        return None
+                    _LOGGER.error(
+                        "Failed to get WebServer MAC address. Status: %s",
+                        response.status,
+                    )
+                    return None
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.error("Error getting WebServer MAC ADDRESS: %s", err)
+                return None
 
     async def get_device_list_bridge(self) -> tuple[int, str | None]:
         """Get the device list from the bridge."""
