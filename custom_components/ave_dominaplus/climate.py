@@ -119,7 +119,7 @@ def update_thermostat(
         # Update the existing sensor's state
         thermostat: AveThermostat = server.thermostats[unique_id]
         if properties is not None:
-            thermostat.update_state(properties)
+            thermostat.update_all_properties(properties)
             if properties.device_name is not None and server.settings.get_entity_names:
                 thermostat.set_ave_name(properties.device_name)
                 if not check_name_changed(server.hass, unique_id):
@@ -410,6 +410,11 @@ class AveThermostat(ClimateEntity):
         """Update the AVE properties of the thermostat."""
         self.ave_properties = properties
         self.async_write_ha_state()
+
+    def set_ave_name(self, name: str | None):
+        """Set the AVE name of the sensor."""
+        if name is not None:
+            self.ave_properties.device_name = name
 
     def set_name(self, name: str | None):
         """Set the name of the sensor."""

@@ -65,7 +65,7 @@ class AveWebServer:
         self.ws_conn: Any = None
         self._connected = False
         self.device_list: list[Any] = []
-        self.wstask: asyncio.Task
+        self.wtstask: asyncio.Task
         self.started = False
         self.closed = False
         self.binary_sensors: dict = {}  # Track binary sensors by unique ID
@@ -81,6 +81,9 @@ class AveWebServer:
         self._thermostat_lm_done = asyncio.Event()
         self._thermostat_lmc_done = asyncio.Event()
         self._thermostat_fetch_task: asyncio.Task | None = None
+        self.numbers: dict = {}  # Track number entities by unique ID
+        self.async_add_number_entities: Any = None
+        self.update_th_offset: Any = None
 
     async def set_update_binary_sensor(self, func) -> None:
         """Set the set_update_binary_sensor method for binary sensors."""
@@ -108,6 +111,16 @@ class AveWebServer:
         """Set the async_add_entities method for thermostats."""
         if self.async_add_th_entities is None:
             self.async_add_th_entities = func
+
+    async def set_async_add_number_entities(self, func) -> None:
+        """Set the async_add_entities method for number entities."""
+        if self.async_add_number_entities is None:
+            self.async_add_number_entities = func
+
+    async def set_update_th_offset(self, func) -> None:
+        """Set the method to add or update thermostat offset number entities."""
+        if self.update_th_offset is None:
+            self.update_th_offset = func
 
     async def is_connected(self) -> bool:
         """Return if the web server is connected."""
@@ -397,16 +410,52 @@ class AveWebServer:
             # ANTITHEFT UNIT (requires SU2)
             _LOGGER.debug("XU Antitheft Unit - engaged", extra={"id": parameters[2]})
         elif parameters[0] == "WT":
-            if parameters[1] == "O":  # THERMOSTAT OFFSET  # noqa: SIM114
-                pass
-            elif parameters[1] == "S":  # THERMOSTAT SEASON # noqa: SIM114
-                pass
-            elif parameters[1] == "T":  # THERMOSTAT TEMPERATURE # noqa: SIM114
-                pass
-            elif parameters[1] == "L":  # DAIKIN FAN LEVEL # noqa: SIM114
-                pass
-            elif parameters[1] == "Z":  # DAIKIN LOCALOFF
-                pass
+            if parameters[1] == "O":
+                self.update_thermostat(
+                    server=self,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    property_name="offset",
+                    property_value=int(parameters[3]) / 10,
+                )
+                self.update_th_offset(
+                    server=self,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    offset_value=int(parameters[3]) / 10,
+                )
+            elif parameters[1] == "S":  # THERMOSTAT SEASON
+                self.update_thermostat(
+                    server=self,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    property_name="season",
+                    property_value=int(parameters[3]) / 10,
+                )
+            elif parameters[1] == "T":  # THERMOSTAT TEMPERATURE
+                self.update_thermostat(
+                    server=self,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    property_name="temperature",
+                    property_value=int(parameters[3]) / 10,
+                )
+            elif parameters[1] == "L":
+                self.update_thermostat(
+                    server=self,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    property_name="fan_level",
+                    property_value=int(parameters[3]),
+                )
+            elif parameters[1] == "Z":
+                self.update_thermostat(
+                    server=self,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    property_name="local_off",
+                    property_value=int(parameters[3]),
+                )
         elif parameters[0] == "TM":
             self.update_thermostat(
                 server=self,
@@ -598,6 +647,13 @@ class AveWebServer:
             family=4,
             ave_device_id=device_id,
             properties=thermostatProperties,
+        )
+        self.update_th_offset(
+            server=self,
+            family=4,
+            ave_device_id=device_id,
+            offset_value=thermostatProperties.offset,
+            name=thermostatProperties.device_name,
         )
 
     async def switch_turn_on(self, device_id: int):
