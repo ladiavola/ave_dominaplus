@@ -318,6 +318,9 @@ class AveWebServer:
         if self.ws_conn and not self.ws_conn.closed:
             await self.ws_conn.send_str(full_message)
             escaped_message = full_message.encode("unicode_escape").decode("ascii")
+            escaped_message = (
+                full_message.encode("unicode_escape").decode("ascii")
+            )
             _LOGGER.debug("Sent command: %s", escaped_message)
         else:
             _LOGGER.error("WebSocket is not connected")
