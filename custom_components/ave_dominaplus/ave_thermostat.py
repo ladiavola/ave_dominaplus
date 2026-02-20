@@ -19,7 +19,7 @@ class AveThermostatProperties:
     @staticmethod
     def from_wts(
         parameters: list[str], records: list[list[str]]
-    ) -> AveThermostatProperties:
+    ) -> "AveThermostatProperties":
         """Create thermostat properties from WTS data.
 
         Args:
