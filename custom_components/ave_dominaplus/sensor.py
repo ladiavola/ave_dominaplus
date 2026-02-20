@@ -181,7 +181,10 @@ class ThermostatOffset(SensorEntity):
         self.hass = self._webserver.hass
 
         if name is None:
-            self._name = self.build_name()
+            if webserver.settings.get_entity_names:
+                self._name = f"Thermostat offset {self._ave_name or self.ave_device_id}"
+            else:
+                self._name = self.build_name()
         else:
             self._name = name
 
@@ -236,4 +239,5 @@ class ThermostatOffset(SensorEntity):
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
         suffix = "offset for thermostat"
-        return f"{BRAND_PREFIX} {suffix} {self._ave_name or self.ave_device_id}"
+        mac = self._webserver.mac_address if self._webserver else "unknown"
+        return f"{BRAND_PREFIX} {mac} {suffix} {self._ave_name or self.ave_device_id}"

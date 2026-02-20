@@ -415,7 +415,9 @@ class AveThermostat(ClimateEntity):
     def set_ave_name(self, name: str | None):
         """Set the AVE name of the sensor."""
         if name is not None:
-            self.ave_properties.device_name = name
+            suffix = "thermostat"
+            mac = self._webserver.mac_address if self._webserver else "unknown"
+            self.ave_properties.device_name = f"{BRAND_PREFIX} {mac} {suffix} {name}"
 
     def set_name(self, name: str | None):
         """Set the name of the sensor."""
@@ -427,4 +429,5 @@ class AveThermostat(ClimateEntity):
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
         suffix = "thermostat"
-        return f"{BRAND_PREFIX} {suffix} {self.ave_device_id}"
+        mac = self._webserver.mac_address if self._webserver else "unknown"
+        return f"{BRAND_PREFIX} {mac} {suffix} {self.ave_device_id}"
