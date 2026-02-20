@@ -285,7 +285,9 @@ class AveWebServer:
                 cmd_params, *records_data = str_msg.split(chr(0x1E))
                 command, *parameters = cmd_params.split(chr(0x1D))
                 records = [record.split(chr(0x1D)) for record in records_data]
-                await self.manage_commands(command, parameters, records)
+                await self.manage_incoming_messages_messages(
+                    command, parameters, records
+                )
         except Exception as e:
             _LOGGER.error("Error processing message", exc_info=e)
 
@@ -323,7 +325,7 @@ class AveWebServer:
         else:
             _LOGGER.error("WebSocket is not connected")
 
-    async def manage_commands(self, command, parameters, records):
+    async def manage_incoming_messages_messages(self, command, parameters, records):
         """Manage commands received from the web server."""
         if command == "pong":
             pass
@@ -387,7 +389,6 @@ class AveWebServer:
             #     if device_type in [1, 2, 22, 9, 3, 16, 19, 6]:  # Limited to [Lighting / Energy / Shutters / Scenarios] for security reasons ---
         elif parameters[0] == "X" and parameters[1] == "A":  # ANTITHEFT AREA
             if not self.settings.fetch_sensor_areas:
-                # If the user doesn't want to fetch sensor areas, skip this
                 return
 
             # parameters[2] is the area ID. all other parameters are == 0 when triggered, parameters[6] == 1 when cleared
@@ -402,7 +403,6 @@ class AveWebServer:
             # (f"{ANTITHEFT_PREFIX} XA - areaID: {area_progressive} - engaged: {area_engaged} - clear: {area_clear} - alarm: {area_in_alarm}")
         elif parameters[0] == "X" and parameters[1] == "S":  # ANTITHEFT SENSOR
             if not self.settings.fetch_sensors:
-                # If the user doesn't want to fetch sensors, skip this
                 return
             self.update_binary_sensor(
                 self, 1007, int(parameters[2]), int(parameters[4])
@@ -411,13 +411,15 @@ class AveWebServer:
             # ANTITHEFT UNIT (requires SU2)
             _LOGGER.debug("XU Antitheft Unit - engaged", extra={"id": parameters[2]})
         elif parameters[0] == "WT":
+            # A variety of updates for thermostats, with Device ID as identifier
             if parameters[1] == "O":
                 self.update_thermostat(
                     server=self,
-                    family=4,
-                    ave_device_id=int(parameters[2]),
-                    property_name="offset",
-                    property_value=int(parameters[3]) / 10,
+                    parameters=parameters,
+                    records=records,
+                    command=None,
+                    properties=None,
+                    ave_device_id=None,
                 )
                 self.update_th_offset(
                     server=self,
@@ -425,61 +427,15 @@ class AveWebServer:
                     ave_device_id=int(parameters[2]),
                     offset_value=int(parameters[3]) / 10,
                 )
-            elif parameters[1] == "S":  # THERMOSTAT SEASON
-                self.update_thermostat(
-                    server=self,
-                    family=4,
-                    ave_device_id=int(parameters[2]),
-                    property_name="season",
-                    property_value=int(parameters[3]) / 10,
-                )
-            elif parameters[1] == "T":  # THERMOSTAT TEMPERATURE
-                self.update_thermostat(
-                    server=self,
-                    family=4,
-                    ave_device_id=int(parameters[2]),
-                    property_name="temperature",
-                    property_value=int(parameters[3]) / 10,
-                )
-            elif parameters[1] == "L":
-                self.update_thermostat(
-                    server=self,
-                    family=4,
-                    ave_device_id=int(parameters[2]),
-                    property_name="fan_level",
-                    property_value=int(parameters[3]),
-                )
-            elif parameters[1] == "Z":
-                self.update_thermostat(
-                    server=self,
-                    family=4,
-                    ave_device_id=int(parameters[2]),
-                    property_name="local_off",
-                    property_value=int(parameters[3]),
-                )
-        elif parameters[0] == "TM":
+        elif parameters[0] in ["TM", "TW", "TP"]:
+            # Thermostats update with device ID as identifier
             self.update_thermostat(
                 server=self,
-                family=4,
-                ave_device_id=int(parameters[1]),
-                property_name="mode",
-                property_value=parameters[2],
-            )
-        elif parameters[0] == "TW":
-            self.update_thermostat(
-                server=self,
-                family=4,
-                ave_device_id=int(parameters[1]),
-                property_name="window_state",
-                property_value=int(parameters[2]),
-            )
-        elif parameters[0] == "TP":
-            self.update_thermostat(
-                server=self,
-                family=4,
-                ave_device_id=int(parameters[1]),
-                property_name="set_point",
-                property_value=int(parameters[2]) / 10,
+                parameters=parameters,
+                records=records,
+                command=None,
+                properties=None,
+                ave_device_id=None,
             )
         elif parameters[0] in [
             "TT",
@@ -488,7 +444,7 @@ class AveWebServer:
             "TLO",
             "TO",
             "TS",
-        ]:  # THERMOSTAT
+        ]:  # THERMOSTAT updates with command ID as identifier
             if (
                 not self.ave_map
                 or not self.ave_map.areas_loaded
@@ -505,47 +461,14 @@ class AveWebServer:
                     parameters[1],
                 )
                 return
-
-            if parameters[0] == "TT":
-                self.update_thermostat(
-                    server=self,
-                    family=4,
-                    ave_device_id=_command.device_id,
-                    property_name="temperature",
-                    property_value=int(parameters[2]) / 10,
-                )
-            elif parameters[0] == "TL":
-                self.update_thermostat(
-                    server=self,
-                    family=4,
-                    ave_device_id=_command.device_id,
-                    property_name="fan_level",
-                    property_value=int(parameters[2]),
-                )
-            elif parameters[0] == "TLO":
-                self.update_thermostat(
-                    server=self,
-                    family=4,
-                    ave_device_id=_command.device_id,
-                    property_name="local_off",
-                    property_value=(1 if int(parameters[2]) == 0 else 0),
-                )
-            elif parameters[0] == "TO":
-                self.update_thermostat(
-                    server=self,
-                    family=4,
-                    ave_device_id=_command.device_id,
-                    property_name="offset",
-                    property_value=int(parameters[2]),
-                )
-            elif parameters[0] == "TS":
-                self.update_thermostat(
-                    server=self,
-                    family=4,
-                    ave_device_id=_command.device_id,
-                    property_name="season",
-                    property_value=int(parameters[2]),
-                )
+            self.update_thermostat(
+                server=self,
+                parameters=parameters,
+                records=records,
+                command=_command,
+                properties=None,
+                ave_device_id=None,
+            )
         elif parameters[0] == "GUI":
             # Reload gui
             pass
@@ -654,9 +577,11 @@ class AveWebServer:
 
         self.update_thermostat(
             server=self,
-            family=4,
-            ave_device_id=device_id,
+            parameters=parameters,
+            records=records,
+            command=None,
             properties=thermostatProperties,
+            ave_device_id=device_id,
         )
         self.update_th_offset(
             server=self,
@@ -681,7 +606,7 @@ class AveWebServer:
             _LOGGER.error("WebSocket is not connected")
 
     async def switch_toggle(self, device_id: int):
-        """Turn off the switch."""
+        """Toggle the switch."""
         if self.ws_conn and not self.ws_conn.closed:
             await self.send_ws_command("EBI", [str(device_id), "10"])
         else:
@@ -695,7 +620,7 @@ class AveWebServer:
             _LOGGER.error("WebSocket is not connected")
 
     async def thermostat_on_off(self, device_id: int, on_off: int):
-        """Send a command to update the thermostat season/temperatures."""
+        """Turn the thermostat on or off."""
         if self.ws_conn and not self.ws_conn.closed:
             await self.send_ws_command("TOO", [str(device_id), str(on_off)])
         else:

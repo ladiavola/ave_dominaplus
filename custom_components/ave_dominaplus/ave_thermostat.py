@@ -22,7 +22,7 @@ class AveThermostatProperties:
     @staticmethod
     def from_wts(
         parameters: list[str], records: list[list[str]]
-    ) -> "AveThermostatProperties":
+    ) -> "AveThermostatProperties":  # noqa: UP037 removing quotes breaks HA's loading of the integration
         """Create thermostat properties from WTS data.
 
         Args:

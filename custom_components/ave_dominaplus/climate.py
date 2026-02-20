@@ -21,6 +21,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from .ave_map import AveMapCommand
 from .ave_thermostat import AveThermostatProperties
 from .const import BRAND_PREFIX
 from .web_server import AveWebServer
@@ -103,13 +104,141 @@ def set_sensor_uid(webserver: AveWebServer, family, ave_device_id):
 
 def update_thermostat(
     server: AveWebServer,
+    parameters: list[str],
+    records: list[list[str]],
+    command: AveMapCommand | None = None,
+    properties: AveThermostatProperties | None = None,
+    ave_device_id: int | None = None,
+):
+    """Update thermostat from WS records."""
+    if properties is not None and ave_device_id is not None:
+        # Bulk update/set from WTS
+        _update_thermostat(
+            server=server,
+            family=4,
+            ave_device_id=properties.device_id,
+            properties=properties,
+        )
+    if command is not None:
+        # Updates from WTS that uses command ids as identifiers
+        match parameters[0]:
+            case "TT":
+                _update_thermostat(
+                    server=server,
+                    family=4,
+                    ave_device_id=command.device_id,
+                    property_name="temperature",
+                    property_value=int(parameters[2]) / 10,
+                )
+            case "TL":
+                _update_thermostat(
+                    server=server,
+                    family=4,
+                    ave_device_id=command.device_id,
+                    property_name="fan_level",
+                    property_value=int(parameters[2]),
+                )
+            case "TLO":
+                _update_thermostat(
+                    server=server,
+                    family=4,
+                    ave_device_id=command.device_id,
+                    property_name="local_off",
+                    property_value=(1 if int(parameters[2]) == 0 else 0),
+                )
+            case "TO":
+                _update_thermostat(
+                    server=server,
+                    family=4,
+                    ave_device_id=command.device_id,
+                    property_name="offset",
+                    property_value=int(parameters[2]),
+                )
+            case "TS":
+                _update_thermostat(
+                    server=server,
+                    family=4,
+                    ave_device_id=command.device_id,
+                    property_name="season",
+                    property_value=int(parameters[2]),
+                )
+    elif parameters[0] == "WT":
+        match parameters[1]:
+            case "O":
+                _update_thermostat(
+                    server=server,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    property_name="offset",
+                    property_value=int(parameters[3]) / 10,
+                )
+            case "S":
+                _update_thermostat(
+                    server=server,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    property_name="season",
+                    property_value=int(parameters[3]) / 10,
+                )
+            case "T":
+                _update_thermostat(
+                    server=server,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    property_name="temperature",
+                    property_value=int(parameters[3]) / 10,
+                )
+            case "L":
+                _update_thermostat(
+                    server=server,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    property_name="fan_level",
+                    property_value=int(parameters[3]),
+                )
+            case "Z":
+                _update_thermostat(
+                    server=server,
+                    family=4,
+                    ave_device_id=int(parameters[2]),
+                    property_name="local_off",
+                    property_value=int(parameters[3]),
+                )
+    elif parameters[0] == "TM":
+        _update_thermostat(
+            server=server,
+            family=4,
+            ave_device_id=int(parameters[1]),
+            property_name="mode",
+            property_value=parameters[2],
+        )
+    elif parameters[0] == "TW":
+        _update_thermostat(
+            server=server,
+            family=4,
+            ave_device_id=int(parameters[1]),
+            property_name="window_state",
+            property_value=parameters[2],
+        )
+    elif parameters[0] == "TP":
+        _update_thermostat(
+            server=server,
+            family=4,
+            ave_device_id=int(parameters[1]),
+            property_name="set_point",
+            property_value=int(parameters[2]) / 10,
+        )
+
+
+def _update_thermostat(
+    server: AveWebServer,
     family: int,
     ave_device_id: int,
     properties: AveThermostatProperties | None = None,
     property_name: str | None = None,
     property_value: Any = None,
 ):
-    """Update thermostat based on the family and device status."""
+    """Create or update thermostat based on incoming data from webserver."""
 
     _LOGGER.debug(" Updating thermostat device_id %s", ave_device_id)
 
