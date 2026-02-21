@@ -91,7 +91,7 @@ async def adopt_existing_sensors(
                 thermostat = AveThermostat(
                     unique_id=entity.unique_id,
                     family=family,
-                    ave_properties=None,
+                    ave_properties=properties,
                     webserver=server,
                     name=name,
                 )
