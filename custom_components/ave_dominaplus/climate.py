@@ -1,7 +1,6 @@
 """Climate sensor platform for AVE dominaplus integration."""
 
 import logging
-import re
 from typing import Any
 
 from homeassistant.components.climate import DEFAULT_MAX_TEMP, ClimateEntity
@@ -23,7 +22,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .ave_map import AveMapCommand
 from .ave_thermostat import AveThermostatProperties
-from .const import BRAND_PREFIX
+from .const import AVE_FAMILY_THERMOSTAT, BRAND_PREFIX
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -120,7 +119,7 @@ def update_thermostat(
         # Bulk update/set from WTS
         _update_thermostat(
             server=server,
-            family=4,
+            family=AVE_FAMILY_THERMOSTAT,
             ave_device_id=properties.device_id,
             properties=properties,
         )
@@ -130,7 +129,7 @@ def update_thermostat(
             case "TT":
                 _update_thermostat(
                     server=server,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=command.device_id,
                     property_name="temperature",
                     property_value=int(parameters[2]) / 10,
@@ -138,7 +137,7 @@ def update_thermostat(
             case "TL":
                 _update_thermostat(
                     server=server,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=command.device_id,
                     property_name="fan_level",
                     property_value=int(parameters[2]),
@@ -146,7 +145,7 @@ def update_thermostat(
             case "TLO":
                 _update_thermostat(
                     server=server,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=command.device_id,
                     property_name="local_off",
                     property_value=(1 if int(parameters[2]) == 0 else 0),
@@ -154,7 +153,7 @@ def update_thermostat(
             case "TO":
                 _update_thermostat(
                     server=server,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=command.device_id,
                     property_name="offset",
                     property_value=int(parameters[2]),
@@ -162,7 +161,7 @@ def update_thermostat(
             case "TS":
                 _update_thermostat(
                     server=server,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=command.device_id,
                     property_name="season",
                     property_value=int(parameters[2]),
@@ -172,7 +171,7 @@ def update_thermostat(
             case "O":
                 _update_thermostat(
                     server=server,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=int(parameters[2]),
                     property_name="offset",
                     property_value=int(parameters[3]) / 10,
@@ -180,7 +179,7 @@ def update_thermostat(
             case "S":
                 _update_thermostat(
                     server=server,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=int(parameters[2]),
                     property_name="season",
                     property_value=int(parameters[3]) / 10,
@@ -188,7 +187,7 @@ def update_thermostat(
             case "T":
                 _update_thermostat(
                     server=server,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=int(parameters[2]),
                     property_name="temperature",
                     property_value=int(parameters[3]) / 10,
@@ -196,7 +195,7 @@ def update_thermostat(
             case "L":
                 _update_thermostat(
                     server=server,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=int(parameters[2]),
                     property_name="fan_level",
                     property_value=int(parameters[3]),
@@ -204,7 +203,7 @@ def update_thermostat(
             case "Z":
                 _update_thermostat(
                     server=server,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=int(parameters[2]),
                     property_name="local_off",
                     property_value=int(parameters[3]),
@@ -212,7 +211,7 @@ def update_thermostat(
     elif parameters[0] == "TM":
         _update_thermostat(
             server=server,
-            family=4,
+            family=AVE_FAMILY_THERMOSTAT,
             ave_device_id=int(parameters[1]),
             property_name="mode",
             property_value=parameters[2],
@@ -220,7 +219,7 @@ def update_thermostat(
     elif parameters[0] == "TW":
         _update_thermostat(
             server=server,
-            family=4,
+            family=AVE_FAMILY_THERMOSTAT,
             ave_device_id=int(parameters[1]),
             property_name="window_state",
             property_value=parameters[2],
@@ -228,7 +227,7 @@ def update_thermostat(
     elif parameters[0] == "TP":
         _update_thermostat(
             server=server,
-            family=4,
+            family=AVE_FAMILY_THERMOSTAT,
             ave_device_id=int(parameters[1]),
             property_name="set_point",
             property_value=int(parameters[2]) / 10,
@@ -461,7 +460,7 @@ class AveThermostat(ClimateEntity):
         season = None
         season = (
             self.ave_properties.season
-            if (self.ave_properties.season and self.ave_properties != "")
+            if (self.ave_properties.season is not None and self.ave_properties.season != "")
             else None
         )
         if season is None:
@@ -497,7 +496,7 @@ class AveThermostat(ClimateEntity):
         season = None
         season = (
             self.ave_properties.season
-            if (self.ave_properties.season and self.ave_properties != "")
+            if (self.ave_properties.season is not None and self.ave_properties.season != "")
             else None
         )
         if season is None:

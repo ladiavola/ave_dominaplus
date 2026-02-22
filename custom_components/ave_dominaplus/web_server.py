@@ -11,6 +11,16 @@ import aiohttp
 
 from .ave_map import AveMap, AveMapCommand
 from .ave_thermostat import AveThermostatProperties
+from .const import (
+    AVE_FAMILY_ANTITHEFT,
+    AVE_FAMILY_ANTITHEFT_AREA,
+    AVE_FAMILY_CAMERA,
+    AVE_FAMILY_KEYPAD,
+    AVE_FAMILY_MOTION_SENSOR,
+    AVE_FAMILY_SCENARIO,
+    AVE_FAMILY_SWITCH,
+    AVE_FAMILY_THERMOSTAT,
+)
 
 if TYPE_CHECKING:
     from types import MappingProxyType
@@ -199,12 +209,12 @@ class AveWebServer:
 
         if self.settings.fetch_lights:
             # Get status by family type 1 (lights)
-            await self.send_ws_command("GSF", ["1"])
+            await self.send_ws_command("GSF", [str(AVE_FAMILY_SWITCH)])
 
         # Get status by family type 12 (motion detection areas)
         if self.settings.fetch_sensor_areas:
-            await self.send_ws_command("GSF", ["12"])
-            await self.send_ws_command("WSF", ["12"])
+            await self.send_ws_command("GSF", [str(AVE_FAMILY_ANTITHEFT_AREA)])
+            await self.send_ws_command("WSF", [str(AVE_FAMILY_ANTITHEFT_AREA)])
 
         if self.settings.fetch_thermostats:
             await self._start_thermostats_fetch_flow()
@@ -254,7 +264,7 @@ class AveWebServer:
             _LOGGER.warning("Timed out waiting for LMC responses; proceeding")
 
         # 4) request thermostat status snapshots
-        commands: list[AveMapCommand] = self.ave_map.get_commands_by_family(4)
+        commands: list[AveMapCommand] = self.ave_map.get_commands_by_family(AVE_FAMILY_THERMOSTAT)
         for thermostat_command in commands:
             await self.send_ws_command("WTS", [int(thermostat_command.device_id)])
 
@@ -313,7 +323,7 @@ class AveWebServer:
         if records is not None:
             if not isinstance(records, (list, tuple)):
                 records = str(records).split(",")
-            for record in records:
+            for record in records: # pyright: ignore[reportOptionalIterable]
                 payload += chr(0x1E)
                 if isinstance(record, (list, tuple)):
                     record_string = ",".join(str(item) for item in record)
@@ -392,7 +402,7 @@ class AveWebServer:
             if device_id > 200000:
                 # Devices with ID > 2000000 must be scenarios or something...
                 pass
-            elif device_type == 1 and self.settings.fetch_lights:
+            elif device_type == AVE_FAMILY_SWITCH and self.settings.fetch_lights:
                 self.update_switch(self, device_type, device_id, device_status, None)
             # elif device_type in [12, 13]:
             #     _LOGGER.debug(
@@ -422,7 +432,7 @@ class AveWebServer:
             status = 1
             if area_clear > 0:
                 status = 0
-            self.update_binary_sensor(self, 12, area_progressive, status)
+            self.update_binary_sensor(self, AVE_FAMILY_ANTITHEFT_AREA, area_progressive, status)
             # f"XA - areaID: {area_progressive}
             # - engaged: {area_engaged}
             # - clear: {area_clear}
@@ -431,7 +441,7 @@ class AveWebServer:
             if not self.settings.fetch_sensors:
                 return
             self.update_binary_sensor(
-                self, 1007, int(parameters[2]), int(parameters[4])
+                self, AVE_FAMILY_MOTION_SENSOR, int(parameters[2]), int(parameters[4])
             )
         elif parameters[0] == "X" and parameters[1] == "U":
             # ANTITHEFT UNIT (requires SU2)
@@ -449,7 +459,7 @@ class AveWebServer:
                 )
                 self.update_th_offset(
                     server=self,
-                    family=4,
+                    family=AVE_FAMILY_THERMOSTAT,
                     ave_device_id=int(parameters[2]),
                     offset_value=int(parameters[3]) / 10,
                 )
@@ -472,7 +482,7 @@ class AveWebServer:
             ):
                 _LOGGER.debug("Received th update before map/commands loaded; skipping")
                 return
-            _command = self.ave_map.get_command_by_id_and_family(int(parameters[1]), 4)
+            _command = self.ave_map.get_command_by_id_and_family(int(parameters[1]), AVE_FAMILY_THERMOSTAT)
             if not _command:
                 _LOGGER.debug(
                     "Received th update for unknown command ID %s; skipping",
@@ -504,17 +514,17 @@ class AveWebServer:
             parameters[0],
             extra={"parameters": parameters, "records": records},
         )
-        if parameters[0] in ["7", "12"]:  # Motion detection types
+        if parameters[0] in [str(AVE_FAMILY_ANTITHEFT), str(AVE_FAMILY_ANTITHEFT_AREA)]:  # Motion detection types
             for record in records:
                 device_id, device_status = int(record[0]), int(record[1])
                 self.update_binary_sensor(
                     self, int(parameters[0]), device_id, device_status
                 )
 
-        if parameters[0] == "1":
+        if parameters[0] == str(AVE_FAMILY_SWITCH):
             for record in records:
                 device_id, device_status = int(record[0]), int(record[1])
-                self.update_switch(self, 1, device_id, device_status, None)
+                self.update_switch(self, AVE_FAMILY_SWITCH, device_id, device_status, None)
                 # send_mqtt_message(device_id, device_status)
 
     def manage_ldi(self, parameters: list[Any], records: list[list[Any]]) -> None:
@@ -529,22 +539,22 @@ class AveWebServer:
                 str(record[1]),
                 int(record[2]),
             )
-            if device_type == 12:
+            if device_type == AVE_FAMILY_ANTITHEFT_AREA:
                 # Antitheft area
-                self.update_binary_sensor(self, 12, device_id, -1, device_name)
-            elif device_type == 11:
+                self.update_binary_sensor(self, AVE_FAMILY_ANTITHEFT_AREA, device_id, -1, device_name)
+            elif device_type == AVE_FAMILY_KEYPAD:
                 # Keypad
                 pass
-            elif device_type == 1:
-                self.update_switch(self, 1, device_id, -1, device_name)
+            elif device_type == AVE_FAMILY_SWITCH:
+                self.update_switch(self, AVE_FAMILY_SWITCH, device_id, -1, device_name)
                 # Light
-            elif device_type == 4:
+            elif device_type == AVE_FAMILY_THERMOSTAT:
                 # Thermostat, retrieved with their dedicated bootstrap sequence
                 pass
-            elif device_type == 6:
+            elif device_type == AVE_FAMILY_SCENARIO:
                 # Scenario
                 pass
-            elif device_type == 8:
+            elif device_type == AVE_FAMILY_CAMERA:
                 # Camera
                 pass
             else:
@@ -589,7 +599,7 @@ class AveWebServer:
             f"thermostat_{thermostat_properties.device_name}"
         )
         if self.settings.get_entity_names:
-            command = self.ave_map.get_command_by_deviceid_and_family(device_id, 4)
+            command = self.ave_map.get_command_by_deviceid_and_family(device_id, AVE_FAMILY_THERMOSTAT)
             if command and command.command_name:
                 thermostat_properties.device_name = command.command_name
 
@@ -604,7 +614,7 @@ class AveWebServer:
         if thermostat_properties.offset is not None:
             self.update_th_offset(
                 server=self,
-                family=4,
+                family=AVE_FAMILY_THERMOSTAT,
                 ave_device_id=device_id,
                 offset_value=thermostat_properties.offset,
                 name=thermostat_properties.device_name,

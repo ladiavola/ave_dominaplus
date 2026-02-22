@@ -8,10 +8,10 @@ from typing import Any
 
 import voluptuous as vol
 
-import homeassistant
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.device_registry import format_mac
 
 from .const import DOMAIN
 from .web_server import AveWebServer
@@ -113,7 +113,7 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
         if mac_address is None:
             mac_address = ""
         else:
-            mac_address = homeassistant.helpers.device_registry.format_mac(mac_address)
+            mac_address = format_mac(mac_address)
             await self.async_set_unique_id(mac_address)
         return mac_address
 

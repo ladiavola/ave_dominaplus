@@ -14,7 +14,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util.dt import utcnow
 
-from .const import BRAND_PREFIX
+from .const import AVE_FAMILY_ANTITHEFT_AREA, AVE_FAMILY_MOTION_SENSOR, BRAND_PREFIX
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -63,9 +63,9 @@ async def adopt_existing_sensors(server: AveWebServer, entry: ConfigEntry) -> No
             if entity.unique_id not in server.binary_sensors:
                 # Create a new sensor instance
                 family = int(entity.unique_id.split("_")[2])
-                if family == 12 and not server.settings.fetch_sensor_areas:
+                if family == AVE_FAMILY_ANTITHEFT_AREA and not server.settings.fetch_sensor_areas:
                     continue
-                if family == 1007 and not server.settings.fetch_sensors:
+                if family == AVE_FAMILY_MOTION_SENSOR and not server.settings.fetch_sensors:
                     continue
                 ave_device_id = int(entity.unique_id.split("_")[3])
                 name = None
@@ -104,10 +104,10 @@ def update_binary_sensor(
     server: AveWebServer, family, ave_device_id, device_status, name=None
 ) -> None:
     """Update binary sensors based on the family and device status."""
-    if family == 12:
+    if family == AVE_FAMILY_ANTITHEFT_AREA:
         if not server.settings.fetch_sensor_areas:
             return
-    elif family == 1007:
+    elif family == AVE_FAMILY_MOTION_SENSOR:
         if not server.settings.fetch_sensors:
             return
     else:
@@ -140,7 +140,7 @@ def update_binary_sensor(
     else:
         entity_name = None
         entity_ave_name = None
-        if family == 1007:
+        if family == AVE_FAMILY_MOTION_SENSOR:
             entity_name = None
             entity_ave_name = None
         elif name is not None and server.settings.get_entity_names:
@@ -260,7 +260,7 @@ class MotionBinarySensor(BinarySensorEntity):
             "AVE_family": self.family,
             "AVE_device_id": self.ave_device_id,
         }
-        if self.family != 1007:
+        if self.family != AVE_FAMILY_MOTION_SENSOR:
             info["AVE_name"] = self._ave_name
         return info
 
@@ -295,8 +295,8 @@ class MotionBinarySensor(BinarySensorEntity):
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
         suffix = "sensor type " + str(self.family)
-        if self.family == 12:
+        if self.family == AVE_FAMILY_ANTITHEFT_AREA:
             suffix = "antitheft area"
-        elif self.family == 1007:
+        elif self.family == AVE_FAMILY_MOTION_SENSOR:
             suffix = "antitheft sensor"
         return f"{BRAND_PREFIX} {suffix} {self.ave_device_id}"

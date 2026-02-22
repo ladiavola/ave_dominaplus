@@ -10,7 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import BRAND_PREFIX
+from .const import AVE_FAMILY_THERMOSTAT, BRAND_PREFIX
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ async def adopt_existing_sensors(server: AveWebServer, entry: ConfigEntry) -> No
 
 def set_sensor_uid(webserver: AveWebServer, family, ave_device_id) -> str:
     """Set the unique ID for the sensor."""
-    if family == 4:
+    if family == AVE_FAMILY_THERMOSTAT:
         return f"ave_{webserver.mac_address}_thermostat_offset_{family}_{ave_device_id}"
     return f"ave_{webserver.mac_address}_number_{family}_{ave_device_id}"
 
@@ -96,7 +96,7 @@ def update_th_offset(
     server: AveWebServer, family, ave_device_id, offset_value, name=None
 ) -> None:
     """Update switch based on the family and device status."""
-    if family == 4:
+    if family == AVE_FAMILY_THERMOSTAT:
         if not server.settings.fetch_thermostats:
             return
     else:
