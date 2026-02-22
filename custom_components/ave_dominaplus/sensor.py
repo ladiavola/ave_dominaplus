@@ -8,9 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.entity_platform import (
-    AddEntitiesCallback,
-)
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import BRAND_PREFIX
 from .web_server import AveWebServer
@@ -34,7 +32,8 @@ async def async_setup_entry(
     webserver: AveWebServer = entry.runtime_data
     if not webserver:
         _LOGGER.error("AVE dominaplus: Web server not initialized")
-        raise ConfigEntryNotReady("Can't reach webserver")
+        connection_error= "Can't reach webserver"
+        raise ConfigEntryNotReady(connection_error)
 
     await webserver.set_async_add_number_entities(async_add_entities)
     await webserver.set_update_th_offset(update_th_offset)
@@ -43,22 +42,15 @@ async def async_setup_entry(
     await adopt_existing_sensors(webserver, entry)
 
 
-async def adopt_existing_sensors(
-    server: AveWebServer, entry: ConfigEntry
-) -> None:
+async def adopt_existing_sensors(server: AveWebServer, entry: ConfigEntry) -> None:
     """Adopt existing sensors from the entity registry."""
     try:
         entity_registry = er.async_get(server.hass)
         if entity_registry is None:
             return
-        entities = er.async_entries_for_config_entry(
-            entity_registry, entry.entry_id
-        )
+        entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
         for entity in entities:
-            if not (
-                entity.platform == "ave_dominaplus"
-                and entity.domain == "number"
-            ):
+            if not (entity.platform == "ave_dominaplus" and entity.domain == "number"):
                 continue
             # Check if the sensor is already registered
             if entity.unique_id not in server.numbers:
@@ -84,24 +76,21 @@ async def adopt_existing_sensors(
 
                 server.numbers[entity.unique_id] = sensor
                 server.async_add_number_entities([sensor])
-    except Exception as e:  # noqa: BLE001
-        _LOGGER.error("Error adopting existing sensors: %s", str(e))
+    except Exception:
+        _LOGGER.exception("Error adopting existing sensors")
         # raise ConfigEntryNotReady("Error adopting existing sensors") from e
 
 
-def set_sensor_uid(webserver: AveWebServer, family, ave_device_id):
+def set_sensor_uid(webserver: AveWebServer, family, ave_device_id) -> str:
     """Set the unique ID for the sensor."""
     if family == 4:
-        return (
-            f"ave_{webserver.mac_address}_thermostat_offset_{family}_"
-            f"{ave_device_id}"
-        )
+        return f"ave_{webserver.mac_address}_thermostat_offset_{family}_{ave_device_id}"
     return f"ave_{webserver.mac_address}_number_{family}_{ave_device_id}"
 
 
 def update_th_offset(
     server: AveWebServer, family, ave_device_id, offset_value, name=None
-):
+) -> None:
     """Update switch based on the family and device status."""
     if family == 4:
         if not server.settings.fetch_thermostats:
@@ -194,9 +183,7 @@ class ThermostatOffset(SensorEntity):
 
         if name is None:
             if webserver.settings.get_entity_names:
-                self._name = (
-                    f"Thermostat offset {self._ave_name or self.ave_device_id}"
-                )
+                self._name = f"Thermostat offset {self._ave_name or self.ave_device_id}"
             else:
                 self._name = self.build_name()
         else:
@@ -229,7 +216,7 @@ class ThermostatOffset(SensorEntity):
             "AVE_source_name": self._ave_name,
         }
 
-    def update_value(self, offset_value: float, first_update=False):
+    def update_value(self, offset_value: float, first_update=False) -> None:
         """Update the state of the thermostat offset."""
         if offset_value is None:
             return
@@ -237,14 +224,14 @@ class ThermostatOffset(SensorEntity):
         if not first_update:
             self.async_write_ha_state()
 
-    def set_name(self, name: str | None):
+    def set_name(self, name: str | None) -> None:
         """Set the name of the sensor."""
         if name is None:
             return
         self._name = name
         self.async_write_ha_state()
 
-    def set_ave_name(self, name: str | None):
+    def set_ave_name(self, name: str | None) -> None:
         """Set the AVE name of the sensor."""
         if name is not None:
             self._ave_name = name + " offset"

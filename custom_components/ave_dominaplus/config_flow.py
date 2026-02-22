@@ -56,9 +56,7 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
                 errors["base"] = "unknown"
             else:
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(
-                    title=info["title"], data=user_input
-                )
+                return self.async_create_entry(title=info["title"], data=user_input)
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
@@ -99,9 +97,7 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
         Data has the keys from STEP_USER_DATA_SCHEMA
         with values provided by the user.
         """
-        webserver = AveWebServer(
-            settings_data=MappingProxyType(data), hass=self.hass
-        )
+        webserver = AveWebServer(settings_data=MappingProxyType(data), hass=self.hass)
         resp_code, _resp_content = await webserver.get_device_list_bridge()
         if resp_code == 900:
             raise CannotConnect
@@ -117,9 +113,7 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
         if mac_address is None:
             mac_address = ""
         else:
-            mac_address = homeassistant.helpers.device_registry.format_mac(
-                mac_address
-            )
+            mac_address = homeassistant.helpers.device_registry.format_mac(mac_address)
             await self.async_set_unique_id(mac_address)
         return mac_address
 

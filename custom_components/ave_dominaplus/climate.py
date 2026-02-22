@@ -3,25 +3,22 @@
 import logging
 from typing import Any
 
-from homeassistant.components.climate import (
-    DEFAULT_MAX_TEMP,
+from homeassistant.components.climate import DEFAULT_MAX_TEMP, ClimateEntity
+from homeassistant.components.climate.const import (
     FAN_HIGH,
     FAN_LOW,
     FAN_MEDIUM,
     FAN_OFF,
-    ClimateEntity,
     ClimateEntityFeature,
+    HVACAction,
     HVACMode,
 )
-from homeassistant.components.climate.const import HVACAction
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PRECISION_TENTHS, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.entity_platform import (
-    AddConfigEntryEntitiesCallback,
-)
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .ave_map import AveMapCommand
 from .ave_thermostat import AveThermostatProperties
@@ -35,14 +32,14 @@ PRESET_MANUAL = "Manual"
 
 
 async def async_setup_entry(
-    hass: HomeAssistant | None,
+    _hass: HomeAssistant | None,
     entry: ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Set up AVE dominaplus thermostats.
 
     Args:
-        hass: Home Assistant instance.
+        _hass: Home Assistant instance.
         entry: Config entry for the integration.
         async_add_entities: Callback to add entities to Home Assistant.
 
@@ -50,7 +47,8 @@ async def async_setup_entry(
     webserver: AveWebServer = entry.runtime_data
     if not webserver:
         _LOGGER.error("AVE dominaplus: Web server not initialized")
-        raise ConfigEntryNotReady("Can't reach webserver")
+        connection_error = "Can't reach webserver"
+        raise ConfigEntryNotReady(connection_error)
 
     await webserver.set_async_add_th_entities(async_add_entities)
     await webserver.set_update_thermostat(update_thermostat)
@@ -59,22 +57,15 @@ async def async_setup_entry(
         return
 
 
-async def adopt_existing_sensors(
-    server: AveWebServer, entry: ConfigEntry
-) -> None:
+async def adopt_existing_sensors(server: AveWebServer, entry: ConfigEntry) -> None:
     """Adopt existing sensors from the entity registry."""
     try:
         entity_registry = er.async_get(server.hass)
         if entity_registry is None:
             return
-        entities = er.async_entries_for_config_entry(
-            entity_registry, entry.entry_id
-        )
+        entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
         for entity in entities:
-            if not (
-                entity.platform == "ave_dominaplus"
-                and entity.domain == "climate"
-            ):
+            if not (entity.platform == "ave_dominaplus" and entity.domain == "climate"):
                 continue
             # Check if the sensor is already registered
             if entity.unique_id not in server.thermostats:
@@ -101,12 +92,12 @@ async def adopt_existing_sensors(
 
                 server.thermostats[entity.unique_id] = thermostat
                 server.async_add_th_entities([thermostat])
-    except Exception as e:  # noqa: BLE001
-        _LOGGER.error("Error adopting existing sensors: %s", str(e))
+    except Exception:
+        _LOGGER.exception("Error adopting existing sensors")
         # raise ConfigEntryNotReady("Error adopting existing sensors") from e
 
 
-def set_sensor_uid(webserver: AveWebServer, family, ave_device_id):
+def set_sensor_uid(webserver: AveWebServer, family, ave_device_id) -> str:
     """Set the unique ID for the sensor."""
     return f"ave_{webserver.mac_address}_thermostat_{family}_{ave_device_id}"
 
@@ -118,7 +109,7 @@ def update_thermostat(
     command: AveMapCommand | None = None,
     properties: AveThermostatProperties | None = None,
     ave_device_id: int | None = None,
-):
+)-> None:
     """Update thermostat from WS records."""
     if properties is not None and ave_device_id is not None:
         # Bulk update/set from WTS
@@ -246,9 +237,8 @@ def _update_thermostat(
     properties: AveThermostatProperties | None = None,
     property_name: str | None = None,
     property_value: Any = None,
-):
+)-> None:
     """Create or update thermostat based on incoming data from webserver."""
-
     _LOGGER.debug(" Updating thermostat device_id %s", ave_device_id)
 
     unique_id = set_sensor_uid(server, family, ave_device_id)
@@ -258,10 +248,7 @@ def _update_thermostat(
         thermostat: AveThermostat = server.thermostats[unique_id]
         if properties is not None:
             thermostat.update_all_properties(properties)
-            if (
-                properties.device_name is not None
-                and server.settings.get_entity_names
-            ):
+            if properties.device_name is not None and server.settings.get_entity_names:
                 thermostat.set_ave_name(properties.device_name)
                 if not check_name_changed(server.hass, unique_id):
                     thermostat.set_name(properties.device_name)
@@ -277,10 +264,7 @@ def _update_thermostat(
             return
         # Create a new thermostat entity
         entity_name = None
-        if (
-            properties.device_name is not None
-            and server.settings.get_entity_names
-        ):
+        if properties.device_name is not None and server.settings.get_entity_names:
             entity_name = properties.device_name
 
         thermostat = AveThermostat(
@@ -398,7 +382,7 @@ class AveThermostat(ClimateEntity):
         if not first_update:
             self.async_write_ha_state()
 
-    def update_specific_property(self, property_name: str, value: Any):
+    def update_specific_property(self, property_name: str, value: Any) -> None:
         """Update a specific property of the thermostat."""
         if property_name == "temperature":
             self._attr_current_temperature = value
@@ -438,9 +422,7 @@ class AveThermostat(ClimateEntity):
 
         self.async_write_ha_state()
 
-    def update_from_fan_level(
-        self, fan_level: int, first_update: bool = False
-    ):
+    def update_from_fan_level(self, fan_level: int, first_update: bool = False) -> None:
         """Update the thermostat properties based on the fan level."""
         if fan_level <= 0:
             self._attr_hvac_action = HVACAction.OFF
@@ -462,7 +444,7 @@ class AveThermostat(ClimateEntity):
         if not first_update:
             self.async_write_ha_state()
 
-    async def async_set_temperature(self, **kwargs):
+    async def async_set_temperature(self, **kwargs) -> None:
         """Set new target temperature."""
         season = None
         season = (
@@ -483,7 +465,7 @@ class AveThermostat(ClimateEntity):
                 parameters=parameters, records=records
             )
 
-    async def async_set_fan_mode(self, fan_mode):
+    async def async_set_fan_mode(self, fan_mode) -> None:
         """Set new target fan mode.
 
         Fan mode is readonly in AVE dominaplus thermostats,
@@ -491,7 +473,7 @@ class AveThermostat(ClimateEntity):
         """
         return
 
-    async def async_set_preset_mode(self, preset_mode):
+    async def async_set_preset_mode(self, preset_mode) -> None:
         """Set new target preset mode."""
         season = None
         season = (
@@ -513,7 +495,7 @@ class AveThermostat(ClimateEntity):
                 parameters=parameters, records=records
             )
 
-    async def async_set_hvac_mode(self, hvac_mode):
+    async def async_set_hvac_mode(self, hvac_mode) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.OFF:
             await self._webserver.thermostat_on_off(
@@ -523,21 +505,19 @@ class AveThermostat(ClimateEntity):
             season = 1 if hvac_mode == HVACMode.HEAT else 0
             parameters = [str(self.ave_properties.device_id)]
             _mode = 1 if self._attr_preset_mode == PRESET_MANUAL else 0
-            records = [
-                [season, _mode, int(self._attr_target_temperature * 10)]
-            ]
+            records = [[season, _mode, int(self._attr_target_temperature * 10)]]
             if self._webserver:
                 await self._webserver.send_thermostat_sts(
                     parameters=parameters, records=records
                 )
 
-    async def async_turn_on(self):
+    async def async_turn_on(self) -> None:
         """Turn the entity on."""
         await self._webserver.thermostat_on_off(
             device_id=self.ave_properties.device_id, on_off=1
         )
 
-    async def async_turn_off(self):
+    async def async_turn_off(self) -> None:
         """Turn the entity off."""
         await self._webserver.thermostat_on_off(
             device_id=self.ave_properties.device_id, on_off=0
@@ -563,21 +543,19 @@ class AveThermostat(ClimateEntity):
             "offset": self.ave_properties.offset,
         }
 
-    def update_ave_properties(self, properties: AveThermostatProperties):
+    def update_ave_properties(self, properties: AveThermostatProperties) -> None:
         """Update the AVE properties of the thermostat."""
         self.ave_properties = properties
         self.async_write_ha_state()
 
-    def set_ave_name(self, name: str | None):
+    def set_ave_name(self, name: str | None) -> None:
         """Set the AVE name of the sensor."""
         if name is not None:
             suffix = "thermostat"
             mac = self._webserver.mac_address if self._webserver else "unknown"
-            self.ave_properties.device_name = (
-                f"{BRAND_PREFIX} {mac} {suffix} {name}"
-            )
+            self.ave_properties.device_name = f"{BRAND_PREFIX} {mac} {suffix} {name}"
 
-    def set_name(self, name: str | None):
+    def set_name(self, name: str | None) -> None:
         """Set the name of the sensor."""
         if name is None:
             return
@@ -588,4 +566,4 @@ class AveThermostat(ClimateEntity):
         """Build the name of the sensor based on its family and device ID."""
         suffix = "thermostat"
         mac = self._webserver.mac_address if self._webserver else "unknown"
-        return f"{BRAND_PREFIX} {mac} {suffix} {self.ave_device_id}"
+        return f"{BRAND_PREFIX} {mac} {suffix} {self.ave_properties.device_id}"

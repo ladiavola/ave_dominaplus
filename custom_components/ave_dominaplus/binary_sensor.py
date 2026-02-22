@@ -11,9 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.entity_platform import (
-    AddConfigEntryEntitiesCallback,
-)
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util.dt import utcnow
 
 from .const import BRAND_PREFIX
@@ -23,7 +21,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
-    hass: HomeAssistant | None,
+    _hass: HomeAssistant | None,
     entry: ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
@@ -38,7 +36,8 @@ async def async_setup_entry(
     webserver: AveWebServer = entry.runtime_data
     if not webserver:
         _LOGGER.error("AVE dominaplus: Web server not initialized")
-        raise ConfigEntryNotReady("Can't reach webserver")
+        connection_error = "Can't reach webserver"
+        raise ConfigEntryNotReady(connection_error)
     await webserver.set_update_binary_sensor(update_binary_sensor)
     await webserver.set_async_add_bs_entities(async_add_entities)
     await adopt_existing_sensors(webserver, entry)
@@ -46,17 +45,13 @@ async def async_setup_entry(
     async_add_entities([status_sensor])
 
 
-async def adopt_existing_sensors(
-    server: AveWebServer, entry: ConfigEntry
-) -> None:
+async def adopt_existing_sensors(server: AveWebServer, entry: ConfigEntry) -> None:
     """Adopt existing sensors from the entity registry."""
     try:
         entity_registry = er.async_get(server.hass)
         if entity_registry is None:
             return
-        entities = er.async_entries_for_config_entry(
-            entity_registry, entry.entry_id
-        )
+        entities = er.async_entries_for_config_entry(entity_registry, entry.entry_id)
         for entity in entities:
             if not (
                 entity.platform == "ave_dominaplus"
@@ -90,21 +85,20 @@ async def adopt_existing_sensors(
 
                 server.binary_sensors[entity.unique_id] = sensor
                 server.async_add_bs_entities([sensor])
-    except Exception as e:  # noqa: BLE001
-        _LOGGER.error("Error adopting existing sensors: %s", str(e))
+    except Exception:
+        _LOGGER.exception("Error adopting existing sensors")
         # raise ConfigEntryNotReady("Error adopting existing sensors") from e
 
 
-def set_sensor_uid(family, device_id):
+def set_sensor_uid(family, device_id) -> str:
     """Set the unique ID for the sensor."""
     return f"ave_motion_{family}_{device_id}"  # Unique ID for the sensor
 
 
 def update_binary_sensor(
     server: AveWebServer, family, ave_device_id, device_status, name=None
-):
+) -> None:
     """Update binary sensors based on the family and device status."""
-
     if family == 12:
         if not server.settings.fetch_sensor_areas:
             return
@@ -265,7 +259,7 @@ class MotionBinarySensor(BinarySensorEntity):
             info["AVE_name"] = self._ave_name
         return info
 
-    def update_state(self, is_motion_detected: int | None):
+    def update_state(self, is_motion_detected: int | None) -> None:
         """Update the state of the sensor."""
         if is_motion_detected is not None:
             try:
@@ -273,20 +267,20 @@ class MotionBinarySensor(BinarySensorEntity):
                     self._last_revealed = utcnow().isoformat()
                 elif self._is_motion_detected:
                     self._last_cleared = utcnow().isoformat()
-            except Exception as e:  # noqa: BLE001
-                _LOGGER.error("Error updating last revealed state: %s", str(e))
+            except Exception:
+                _LOGGER.exception("Error updating last revealed state")
             self._is_motion_detected = is_motion_detected
             # Notify Home Assistant of the state change
             self.async_write_ha_state()
 
-    def set_name(self, name: str | None):
+    def set_name(self, name: str | None) -> None:
         """Set the name of the sensor."""
         if name is None:
             return
         self._name = name
         self.async_write_ha_state()
 
-    def set_ave_name(self, name: str | None):
+    def set_ave_name(self, name: str | None) -> None:
         """Set the original name of the sensor."""
         if name is not None:
             self._ave_name = name

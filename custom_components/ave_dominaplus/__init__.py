@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.typing import ConfigType
 
 from .const import DOMAIN
 from .web_server import AveWebServer
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.typing import ConfigType
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -31,7 +34,6 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up AVE ws from a config entry."""
-
     webserver = AveWebServer(entry.data, hass)
     if not await webserver.authenticate():
         _LOGGER.error("AVE dominaplus: Cannot connect to the web server")
