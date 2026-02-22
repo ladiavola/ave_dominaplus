@@ -570,7 +570,8 @@ class AveThermostat(ClimateEntity):
             "AVE_family": self.family,
             "AVE_device_id": self.ave_properties.device_id,
             "AVE_name": self.ave_properties.device_name,
-            "offset": self.ave_properties.offset,
+            "Temperature offset": self.ave_properties.offset,
+            "AVE webserver MAC": self._webserver.mac_address if self._webserver else None,
         }
 
     def update_ave_properties(self, properties: AveThermostatProperties) -> None:

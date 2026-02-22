@@ -195,6 +195,14 @@ class AveHubStatusBinarySensor(BinarySensorEntity):
         """Return the status of the hub."""
         return self._attr_is_on
 
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return additional state attributes."""
+        info = {
+            "AVE webserver MAC": self._ws.mac_address if self._ws else None,
+        }
+        return info
+
     async def async_update(self) -> None:
         """Fetch the latest status from the web server."""
         self._attr_is_on = await self._ws.is_connected()

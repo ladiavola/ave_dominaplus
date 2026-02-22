@@ -218,6 +218,7 @@ class ThermostatOffset(SensorEntity):
             "AVE_source_device_family": self.family,
             "AVE_source_device_id": self.ave_device_id,
             "AVE_source_name": self._ave_name,
+            "AVE webserver MAC": self._webserver.mac_address if self._webserver else None,
         }
 
     def update_value(self, offset_value: float, first_update=False) -> None:
