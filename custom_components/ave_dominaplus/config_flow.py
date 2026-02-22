@@ -99,6 +99,13 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected exception")
             return self.async_abort(reason="unknown")
 
+        legacy_entry = await self._async_adopt_legacy_entry_by_mac(
+            discovered_mac=info["mac_address"],
+            discovered_host=user_input[CONF_IP_ADDRESS],
+        )
+        if legacy_entry is not None:
+            return self.async_abort(reason="already_configured")
+
         self._abort_if_unique_id_configured(
             updates={CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS]}
         )
@@ -133,6 +140,41 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
                 "mac_address": self._discovered_mac,
             },
         )
+
+    async def _async_adopt_legacy_entry_by_mac(
+        self, discovered_mac: str, discovered_host: str
+    ) -> Any | None:
+        """Adopt legacy entries missing unique_id if their MAC matches."""
+        for entry in self._async_current_entries():
+            if entry.unique_id:
+                continue
+
+            entry_data = dict(entry.data)
+            entry_host = entry_data.get(CONF_IP_ADDRESS)
+            if not entry_host or not isinstance(entry_host, str):
+                continue
+
+            webserver = AveWebServer(
+                settings_data=MappingProxyType(entry_data), hass=self.hass
+            )
+            legacy_mac = await webserver.tryget_mac_address()
+
+            if not legacy_mac:
+                continue
+
+            if format_mac(legacy_mac) != discovered_mac:
+                continue
+
+            entry_data[CONF_IP_ADDRESS] = discovered_host
+            self.hass.config_entries.async_update_entry(
+                entry,
+                data=entry_data,
+                title=f"AVE webserver {discovered_mac}",
+                unique_id=discovered_mac,
+            )
+            return entry
+
+        return None
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
