@@ -112,16 +112,18 @@ def update_binary_sensor(
             return
     else:
         _LOGGER.debug(
-            " Not updating binary sensor for family %s, device_id %s",
+            " Not updating binary sensor for family %s, device_id %s, status %s",
             family,
             ave_device_id,
+            device_status,
         )
         return
 
     _LOGGER.debug(
-        " Updating binary sensor for family %s, device_id %s",
+        " Updating binary sensor for family %s, device_id %s, status %s",
         family,
         ave_device_id,
+        device_status,
     )
 
     unique_id = set_sensor_uid(family, ave_device_id)
@@ -284,14 +286,16 @@ class MotionBinarySensor(BinarySensorEntity):
                 _LOGGER.exception("Error updating last revealed state")
             self._is_motion_detected = is_motion_detected
             # Notify Home Assistant of the state change
-            self.async_write_ha_state()
+            if self.hass:
+                self.async_write_ha_state()
 
     def set_name(self, name: str | None) -> None:
         """Set the name of the sensor."""
         if name is None:
             return
         self._name = name
-        self.async_write_ha_state()
+        if self.hass:
+            self.async_write_ha_state()
 
     def set_ave_name(self, name: str | None) -> None:
         """Set the original name of the sensor."""
