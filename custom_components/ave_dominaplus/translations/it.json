@@ -37,7 +37,24 @@
       },
       "zeroconf_confirm": {
         "title": "Webserver AVE rilevato",
-        "description": "Host: {ip_address}\\nMAC: {mac_address}\\n\\nConferma per aggiungere questa integrazione."
+        "description": "Host: {ip_address}\nMAC: {mac_address}\n\nConferma per aggiungere questa integrazione."
+      },
+      "zeroconf_configure": {
+        "title": "Configura il webserver AVE rilevato",
+        "description": "Controlla e modifica le opzioni prima di aggiungere l'integrazione.",
+        "data": {
+          "ip_address": "Indirizzo IP del webserver",
+          "get_entities_names": "Usa i nomi entità dal webserver",
+          "fetch_sensor_areas": "Importa le aree antifurto",
+          "fetch_sensors": "Importa i sensori antifurto individuali",
+          "fetch_lights": "Importa le luci",
+          "fetch_thermostats": "Importa i termostati"
+        },
+        "data_description": {
+          "ip_address": "Il webserver deve essere raggiungibile dall'istanza Home Assistant.",
+          "get_entities_names": "Usa nomi e identificativi entità configurati nel sistema Domina Plus.",
+          "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità."
+        }
       }
     },
     "error": {
@@ -47,6 +64,7 @@
     },
     "abort": {
       "already_configured": "Dispositivo già configurato",
+      "already_in_progress": "Flusso di configurazione già in corso per questo dispositivo",
       "cannot_connect": "Connessione non riuscita",
       "not_ave_webserver": "Il dispositivo scoperto non è un webserver AVE",
       "unknown": "Errore sconosciuto"

@@ -8,6 +8,7 @@ from typing import Any
 
 import voluptuous as vol
 
+from homeassistant import data_entry_flow
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.exceptions import HomeAssistantError
@@ -19,16 +20,37 @@ from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
 
-STEP_USER_DATA_SCHEMA = vol.Schema(
-    {
-        vol.Required(CONF_IP_ADDRESS, default="192.168.1.10"): str,
-        vol.Required("get_entities_names", default=True): bool,
-        vol.Required("fetch_sensor_areas", default=True): bool,
-        vol.Required("fetch_sensors", default=True): bool,
-        vol.Required("fetch_lights", default=True): bool,
-        vol.Required("fetch_thermostats", default=True): bool,
-    }
-)
+def _build_step_user_data_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
+    """Build config schema for user-like setup steps."""
+    defaults = defaults or {}
+    return vol.Schema(
+        {
+            vol.Required(
+                CONF_IP_ADDRESS,
+                default=defaults.get(CONF_IP_ADDRESS, "192.168.1.10"),
+            ): str,
+            vol.Required(
+                "get_entities_names",
+                default=defaults.get("get_entities_names", True),
+            ): bool,
+            vol.Required(
+                "fetch_sensor_areas",
+                default=defaults.get("fetch_sensor_areas", True),
+            ): bool,
+            vol.Required(
+                "fetch_sensors",
+                default=defaults.get("fetch_sensors", True),
+            ): bool,
+            vol.Required(
+                "fetch_lights",
+                default=defaults.get("fetch_lights", True),
+            ): bool,
+            vol.Required(
+                "fetch_thermostats",
+                default=defaults.get("fetch_thermostats", True),
+            ): bool,
+        }
+    )
 
 
 class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -64,13 +86,22 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(title=info["title"], data=user_input)
 
         return self.async_show_form(
-            step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+            step_id="user",
+            data_schema=_build_step_user_data_schema(),
+            errors=errors,
         )
 
     async def async_step_zeroconf(
         self, discovery_info: ZeroconfServiceInfo
     ) -> ConfigFlowResult:
         """Handle zeroconf discovery."""
+        _LOGGER.debug(
+            "Zeroconf discovery for AVE candidate: name=%s type=%s host=%s ips=%s",
+            discovery_info.name,
+            discovery_info.type,
+            discovery_info.host,
+            [str(ip_addr) for ip_addr in discovery_info.ip_addresses],
+        )
         discovered_host = discovery_info.host
         for ip_addr in discovery_info.ip_addresses:
             if ip_addr.version == 4:
@@ -95,6 +126,10 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="cannot_connect")
         except MacAddressNotFound:
             return self.async_abort(reason="not_ave_webserver")
+        except data_entry_flow.AbortFlow as err:
+            if err.reason == "already_in_progress":
+                return self.async_abort(reason="already_in_progress")
+            raise
         except Exception:
             _LOGGER.exception("Unexpected exception")
             return self.async_abort(reason="unknown")
@@ -127,10 +162,7 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
             return self.async_abort(reason="unknown")
 
         if user_input is not None:
-            return self.async_create_entry(
-                title=self._discovered_title,
-                data=self._discovered_user_input,
-            )
+            return await self.async_step_zeroconf_configure()
 
         return self.async_show_form(
             step_id="zeroconf_confirm",
@@ -139,6 +171,43 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
                 "ip_address": self._discovered_user_input[CONF_IP_ADDRESS],
                 "mac_address": self._discovered_mac,
             },
+        )
+
+    async def async_step_zeroconf_configure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Configure a discovered AVE webserver with manual options."""
+        if self._discovered_user_input is None:
+            return self.async_abort(reason="unknown")
+
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            self._async_abort_entries_match(
+                {CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS]}
+            )
+            try:
+                info = await self.validate_input(user_input, require_mac_address=True)
+            except CannotConnect:
+                errors["base"] = "cannot_connect"
+            except InvalidAuth:
+                errors["base"] = "invalid_auth"
+            except MacAddressNotFound:
+                errors["base"] = "not_ave_webserver"
+            except data_entry_flow.AbortFlow as err:
+                if err.reason == "already_in_progress":
+                    return self.async_abort(reason="already_in_progress")
+                raise
+            except Exception:
+                _LOGGER.exception("Unexpected exception")
+                errors["base"] = "unknown"
+            else:
+                self._abort_if_unique_id_configured()
+                return self.async_create_entry(title=info["title"], data=user_input)
+
+        return self.async_show_form(
+            step_id="zeroconf_configure",
+            data_schema=_build_step_user_data_schema(self._discovered_user_input),
+            errors=errors,
         )
 
     async def _async_adopt_legacy_entry_by_mac(
@@ -201,7 +270,7 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="reconfigure",
-            data_schema=STEP_USER_DATA_SCHEMA,
+            data_schema=_build_step_user_data_schema(),
             errors=errors,
         )
 

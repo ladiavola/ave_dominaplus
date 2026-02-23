@@ -10,6 +10,18 @@
     {
       "type": "_udisks-ssh._tcp.local.",
       "name": "AVE-WS*"
+    },
+    {
+      "type": "_udisks-ssh._tcp.local.",
+      "name": "ave-ws*"
+    },
+    {
+      "type": "_workstation._tcp.local.",
+      "name": "AVE-WS*"
+    },
+    {
+      "type": "_workstation._tcp.local.",
+      "name": "ave-ws*"
     }
   ],
   "version": "1.1.1",
