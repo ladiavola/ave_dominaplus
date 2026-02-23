@@ -1,12 +1,6 @@
 {
     "python.linting.pylintEnabled": true,
     "python.linting.enabled": true,
-    "remote.autoForwardPorts": false,
-    "remote.portsAttributes": {
-        "18125": {
-            "onAutoForward": "ignore"
-        }
-    },
     "black-formatter.args": [
         "--line-length",
         "79"

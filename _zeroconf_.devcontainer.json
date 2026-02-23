@@ -1,6 +1,9 @@
 {
     "name": "emmeoerre/ave_dominaplus",
     "image": "mcr.microsoft.com/devcontainers/python:3.13",
+    "runArgs": [
+        "--network=host"
+    ],
     "postCreateCommand": "scripts/setup",
     "forwardPorts": [
         18125
