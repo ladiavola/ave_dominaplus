@@ -446,6 +446,9 @@ class AveWebServer:
         elif parameters[0] == "X" and parameters[1] == "U":
             # ANTITHEFT UNIT (requires SU2)
             _LOGGER.debug("XU Antitheft Unit - engaged", extra={"id": parameters[2]})
+        elif parameters[0] == "X" and parameters[1] == "A":
+            # ANTITHEFT AREA (not handled yed)
+            pass
         elif parameters[0] == "WT":
             # Serveral updates for thermostats, using Device ID as identifier
             if parameters[1] == "O":
@@ -497,12 +500,32 @@ class AveWebServer:
                 properties=None,
                 ave_device_id=None,
             )
-        elif parameters[0] == "GUI":
-            # Reload gui
+        elif parameters[0] in ["GUI", "D"]:
+            # Reload gui or update icon
+            pass
+        elif parameters[0] in ["HO", "VMM", "TAF", "TK", "UMI", "S", "VI", "A", "CS1", "CS2", "CS3", "abl", "LL", "SRE", "STO", "RGB", "grp", "epv", "htl"]:
+            """
+            Not handled known updates
+            HO: fot TS1 devices
+            WMM: daikin mode
+            TAF: thermostat anti freezing
+            TK: themrostat keyboard lock
+            UMI: humidity probe
+            S: tutondo
+            VI: vivaldi
+            A , CS1, CS2, CS3: alarm
+            abl: abano
+            LL: label update
+            SRE, STO: alarm silence
+            RGB : colorwheel update
+            grp: group dimmer?
+            epv: economizer values
+            htl: hotel
+            """
             pass
         else:
             _LOGGER.debug(
-                "Received not yet handled UPD %s",
+                "Received not unknown UPD %s",
                 parameters[0],
                 extra={"parameters": parameters},
             )
