@@ -20,6 +20,7 @@ from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
 
+
 def _build_step_user_data_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
     """Build config schema for user-like setup steps."""
     defaults = defaults or {}
@@ -116,9 +117,7 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
             "fetch_lights": True,
             "fetch_thermostats": True,
         }
-        self._async_abort_entries_match(
-            {CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS]}
-        )
+        self._async_abort_entries_match({CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS]})
 
         try:
             info = await self.validate_input(user_input, require_mac_address=True)

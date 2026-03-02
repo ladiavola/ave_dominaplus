@@ -16,14 +16,14 @@ Usage examples:
 from __future__ import annotations
 
 import argparse
+from collections import defaultdict
+from dataclasses import asdict, dataclass, field
 import json
 import re
 import socket
 import subprocess
 import sys
 import time
-from collections import defaultdict
-from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from zeroconf import IPVersion, ServiceBrowser, ServiceInfo, ServiceListener, Zeroconf

@@ -63,9 +63,15 @@ async def adopt_existing_sensors(server: AveWebServer, entry: ConfigEntry) -> No
             if entity.unique_id not in server.binary_sensors:
                 # Create a new sensor instance
                 family = int(entity.unique_id.split("_")[2])
-                if family == AVE_FAMILY_ANTITHEFT_AREA and not server.settings.fetch_sensor_areas:
+                if (
+                    family == AVE_FAMILY_ANTITHEFT_AREA
+                    and not server.settings.fetch_sensor_areas
+                ):
                     continue
-                if family == AVE_FAMILY_MOTION_SENSOR and not server.settings.fetch_sensors:
+                if (
+                    family == AVE_FAMILY_MOTION_SENSOR
+                    and not server.settings.fetch_sensors
+                ):
                     continue
                 ave_device_id = int(entity.unique_id.split("_")[3])
                 name = None
@@ -200,10 +206,9 @@ class AveHubStatusBinarySensor(BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional state attributes."""
-        info = {
+        return {
             "AVE webserver MAC": self._ws.mac_address if self._ws else None,
         }
-        return info
 
     async def async_update(self) -> None:
         """Fetch the latest status from the web server."""

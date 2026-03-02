@@ -92,7 +92,8 @@ async def adopt_existing_sensors(server: AveWebServer, entry: ConfigEntry) -> No
 
                 server.thermostats[entity.unique_id] = thermostat
                 server.async_add_th_entities([thermostat])
-                _LOGGER.info("Adopted existing thermostat entity with name %s with unique_id %s",
+                _LOGGER.info(
+                    "Adopted existing thermostat entity with name %s with unique_id %s",
                     thermostat.name,
                     thermostat.unique_id,
                 )
@@ -113,7 +114,7 @@ def update_thermostat(
     command: AveMapCommand | None = None,
     properties: AveThermostatProperties | None = None,
     ave_device_id: int | None = None,
-)-> None:
+) -> None:
     """Update thermostat from WS records."""
     if properties is not None and ave_device_id is not None:
         # Bulk update/set from WTS
@@ -241,7 +242,7 @@ def _update_thermostat(
     properties: AveThermostatProperties | None = None,
     property_name: str | None = None,
     property_value: Any = None,
-)-> None:
+) -> None:
     """Create or update thermostat based on incoming data from webserver."""
 
     unique_id = set_sensor_uid(server, family, ave_device_id)
@@ -249,7 +250,9 @@ def _update_thermostat(
     if already_exists:
         # Update the existing sensor's state
         thermostat: AveThermostat = server.thermostats[unique_id]
-        _LOGGER.debug(" Updating thermostat %s device_id %s", thermostat.name, ave_device_id)
+        _LOGGER.debug(
+            " Updating thermostat %s device_id %s", thermostat.name, ave_device_id
+        )
 
         if properties is not None:
             thermostat.update_all_properties(properties)
@@ -271,7 +274,8 @@ def _update_thermostat(
         entity_name = None
         if server.settings.get_entity_names:
             if properties.device_name is None:
-                _LOGGER.debug("Cannot create thermostat entity for device_id %s because device_name is None and get_entity_names is enabled. Waiting for discovery message",
+                _LOGGER.debug(
+                    "Cannot create thermostat entity for device_id %s because device_name is None and get_entity_names is enabled. Waiting for discovery message",
                     ave_device_id,
                 )
                 return
@@ -460,7 +464,10 @@ class AveThermostat(ClimateEntity):
         season = None
         season = (
             self.ave_properties.season
-            if (self.ave_properties.season is not None and self.ave_properties.season != "")
+            if (
+                self.ave_properties.season is not None
+                and self.ave_properties.season != ""
+            )
             else None
         )
         if season is None:
@@ -496,7 +503,10 @@ class AveThermostat(ClimateEntity):
         season = None
         season = (
             self.ave_properties.season
-            if (self.ave_properties.season is not None and self.ave_properties.season != "")
+            if (
+                self.ave_properties.season is not None
+                and self.ave_properties.season != ""
+            )
             else None
         )
         if season is None:
@@ -571,7 +581,9 @@ class AveThermostat(ClimateEntity):
             "AVE_device_id": self.ave_properties.device_id,
             "AVE_name": self.ave_properties.device_name,
             "Temperature offset": self.ave_properties.offset,
-            "AVE webserver MAC": self._webserver.mac_address if self._webserver else None,
+            "AVE webserver MAC": self._webserver.mac_address
+            if self._webserver
+            else None,
         }
 
     def update_ave_properties(self, properties: AveThermostatProperties) -> None:

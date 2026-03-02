@@ -303,6 +303,8 @@ max-line-length-suggestions = 72
 
 [tool.ruff]
 required-version = ">=0.14.14"
+# In addition to the standard set of exclusions, omit all scripts.
+extend-exclude = ["scripts"]
 
 [tool.ruff.lint]
 select = [

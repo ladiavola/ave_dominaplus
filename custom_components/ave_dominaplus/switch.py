@@ -32,7 +32,7 @@ async def async_setup_entry(
     webserver: AveWebServer = entry.runtime_data
     if not webserver:
         _LOGGER.error("AVE dominaplus: Web server not initialized")
-        connection_error= "Can't reach webserver"
+        connection_error = "Can't reach webserver"
         raise ConfigEntryNotReady(connection_error)
 
     await webserver.set_async_add_sw_entities(async_add_entities)
@@ -228,7 +228,9 @@ class LightSwitch(SwitchEntity):
             "AVE_family": self.family,
             "AVE_device_id": self.ave_device_id,
             "AVE_name": self._ave_name,
-            "AVE webserver MAC": self._webserver.mac_address if self._webserver else None,
+            "AVE webserver MAC": self._webserver.mac_address
+            if self._webserver
+            else None,
         }
 
     def update_state(self, is_on: int) -> None:

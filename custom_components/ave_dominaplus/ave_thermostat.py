@@ -56,9 +56,13 @@ class AveThermostatProperties:
         season_str = get_record_value(4)
         props.season = int(season_str) if season_str is not None else -1
         temperature_str = get_record_value(5)
-        props.temperature = int(temperature_str) / 10 if temperature_str is not None else 0.0
+        props.temperature = (
+            int(temperature_str) / 10 if temperature_str is not None else 0.0
+        )
         forced_mode_record = get_record_value(8) or "0"
-        props.mode = "1F" if int(forced_mode_record) == 1 else (get_record_value(6) or "")
+        props.mode = (
+            "1F" if int(forced_mode_record) == 1 else (get_record_value(6) or "")
+        )
         set_point_str = get_record_value(7)
         props.set_point = int(set_point_str) / 10 if set_point_str is not None else None
         forced_mode_str = get_record_value(8)
