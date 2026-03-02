@@ -419,11 +419,11 @@ class AveWebServer:
 
     def manage_upd(self, parameters, records) -> None:
         """Manage UPD commands received from the web server."""
-        # _LOGGER.debug(
-        #     "Received UPD command. Parameters: %s Records: %s",
-        #     parameters,
-        #     records,
-        # )
+        _LOGGER.debug(
+            "Received UPD command. Parameters: %s | Records: %s",
+            parameters,
+            records,
+        )
         if parameters[0] == "WS":
             device_type, device_id, device_status = (
                 int(parameters[1]),
@@ -587,9 +587,10 @@ class AveWebServer:
     def manage_gsf(self, parameters: list[Any], records: list[list[Any]]) -> None:
         """Manage GSF Get Status by Family responses."""
         _LOGGER.debug(
-            "Received GSF (Get status by family) response for family %s",
+            "Received GSF (Get status by family) response for family %s, parameters: %s | records: %s",
             parameters[0],
-            extra={"parameters": parameters, "records": records},
+            parameters,
+            records,
         )
         if parameters[0] in [
             str(AVE_FAMILY_ANTITHEFT),
@@ -612,8 +613,9 @@ class AveWebServer:
     def manage_ldi(self, parameters: list[Any], records: list[list[Any]]) -> None:
         """Manage LDI List Devices commands received from the web server."""
         _LOGGER.debug(
-            "Parsing LDI (List Devices) command",
-            extra={"parameters": parameters, "records": records},
+            "Parsing LDI (List Devices) command, parameters: %s | records: %s",
+            parameters,
+            records,
         )
         self.raw_ldi = []
         for record in records:
@@ -668,8 +670,9 @@ class AveWebServer:
     def manage_lm(self, parameters, records) -> None:
         """Manage LM List Map commands received from the web server."""
         _LOGGER.debug(
-            "Parsing LM (List Map) command",
-            extra={"parameters": parameters, "records": records},
+            "Parsing LM (List Map) command, parameters: %s | records: %s",
+            parameters,
+            records,
         )
         self.ave_map.load_areas_from_wsrecords(records)
         self.ave_map.areas_loaded = True
@@ -690,8 +693,9 @@ class AveWebServer:
     def manage_wts(self, parameters: list[Any], records: list[list[Any]]) -> None:
         """Manage WTS command responses."""
         _LOGGER.debug(
-            "Parsing WTS response",
-            extra={"parameters": parameters, "records": records},
+            "Parsing WTS response, parameters: %s | records: %s",
+            parameters,
+            records,
         )
         device_id = int(parameters[0])
         thermostat_properties = AveThermostatProperties.from_wts(parameters, records)

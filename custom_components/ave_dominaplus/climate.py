@@ -368,6 +368,10 @@ class AveThermostat(ClimateEntity):
     def update_from_wts(self, parameters: list[str], records: list[list[str]]):
         """Update the thermostat properties from WTS data."""
         ave_properties = AveThermostatProperties.from_wts(parameters, records)
+        _LOGGER.debug(
+            "Updating thermostat from WTS data. Parsed properties: %s",
+            ave_properties,
+        )
         self.update_all_properties(ave_properties)
 
     def update_all_properties(
