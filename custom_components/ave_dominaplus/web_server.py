@@ -80,6 +80,7 @@ class AveWebServer:
         self.wtstask: asyncio.Task
         self.started = False
         self.closed = False
+        self.raw_ldi: list[Any] = []
         self.binary_sensors: dict = {}  # Track binary sensors by unique ID
         self.update_binary_sensor: Any = None
         self.async_add_bs_entities: Any = None
@@ -201,6 +202,8 @@ class AveWebServer:
                     elif msg.type == aiohttp.WSMsgType.ERROR:
                         _LOGGER.error("WebSocket error", extra={"error": msg.data})
                         break
+
+                self._connected = False
 
             except Exception:
                 _LOGGER.exception("WebSocket connection error")
@@ -610,11 +613,19 @@ class AveWebServer:
             "Parsing LDI (List Devices) command",
             extra={"parameters": parameters, "records": records},
         )
+        self.raw_ldi = []
         for record in records:
             device_id, device_name, device_type = (
                 int(record[0]),
                 str(record[1]),
                 int(record[2]),
+            )
+            self.raw_ldi.append(
+                {
+                    "device_id": device_id,
+                    "device_name": device_name,
+                    "device_type": device_type,
+                }
             )
             if device_name and device_name[0] == "$":
                 # RGBW, unhandled
