@@ -1,12 +1,12 @@
 {
-    "python.linting.pylintEnabled": true,
-    "python.linting.enabled": true,
-    "black-formatter.args": [
-        "--line-length",
-        "79"
-    ],
-    "[python]": {
-        "editor.defaultFormatter": "ms-python.black-formatter",
-        "editor.formatOnSave": true
+    "ruff.lint.enable": true,
+    "ruff.format.enabled": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.ruff": "explicit",
+        "source.organizeImports.ruff": "explicit"
     },
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true
+    }
 }
