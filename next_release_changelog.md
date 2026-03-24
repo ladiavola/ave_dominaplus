@@ -1,11 +1,5 @@
 # Next Release Changelog
 
-## Scope
-- **Target merge:** `develop` -> `main`
-- **Commit range:** `3700097` (2026-02-18) to `0100dfa` (2026-03-02)
-- **Total commits:** 67
-- **Diff summary:** 41 files changed, 4405 insertions, 293 deletions
-
 ## Highlights
 
 ### Added
@@ -28,9 +22,12 @@
 - Sensor adoption and startup/reload reliability improvements.
 - XML handling hardened by switching to `defusedxml`.
 - General cleanup, linting, and formatting fixes across integration and tooling files.
+- Thermostats' properties typing, some glaring bugs in update parsing (season)
 
 ## Suggested Release Notes (Short Form)
 - Thermostats: improved discovery, including devices not present in any map.
+- Thermostats: fixed some bugs recovering season and other states for newer models
+- Thermostats: (tentative) enable turn on for devices that supports it
 - Webserver autodiscovery (zeroconf).
 - Diagnostic dump for easier trubleshooting
 - Development tools and documentation to help contributors get started
