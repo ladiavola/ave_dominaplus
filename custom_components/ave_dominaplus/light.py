@@ -229,6 +229,7 @@ class DimmerLight(LightEntity):
         self._ave_name = ave_name
         self._address_dec = address_dec
         self._brightness = None
+        self._pending_state_write = False
 
         if self.family == AVE_FAMILY_DIMMER:
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
@@ -245,6 +246,13 @@ class DimmerLight(LightEntity):
         self._attr_is_on = False
         if is_on is not None and is_on >= 0:
             self.update_state(is_on)
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity added to Home Assistant."""
+        await super().async_added_to_hass()
+        if self._pending_state_write:
+            self._pending_state_write = False
+            self.async_write_ha_state()
 
     async def async_toggle(self, **kwargs: Any) -> None:
         """Toggle the light."""
@@ -323,26 +331,33 @@ class DimmerLight(LightEntity):
                 changed = True
 
         if changed:
-            self.async_write_ha_state()
+            self._write_state_or_defer()
 
     def set_name(self, name: str | None) -> None:
         """Set the entity name."""
         if name is None:
             return
         self._name = name
-        self.async_write_ha_state()
+        self._write_state_or_defer()
 
     def set_ave_name(self, name: str | None) -> None:
         """Set AVE native name."""
         if name is not None:
             self._ave_name = name
-            self.async_write_ha_state()
+            self._write_state_or_defer()
 
     def set_address_dec(self, address_dec: int | None) -> None:
         """Set the AVE decimal address."""
         if address_dec is not None and self._address_dec != address_dec:
             self._address_dec = address_dec
-            self.async_write_ha_state()
+            self._write_state_or_defer()
+
+    def _write_state_or_defer(self) -> None:
+        """Write state now when possible, otherwise defer until entity attach."""
+        if self.hass is None or self.entity_id is None:
+            self._pending_state_write = True
+            return
+        self.async_write_ha_state()
 
     def build_name(self) -> str:
         """Build default entity name."""

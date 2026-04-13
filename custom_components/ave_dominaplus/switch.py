@@ -194,6 +194,7 @@ class LightSwitch(SwitchEntity):
         self._ave_name = ave_name
         self._address_dec = address_dec
         self.hass = self._webserver.hass
+        self._pending_state_write = False
 
         if is_on is not None and is_on >= 0:
             self._attr_is_on = bool(is_on)  # Initialize the state
@@ -202,6 +203,13 @@ class LightSwitch(SwitchEntity):
             self._name = self.build_name()
         else:
             self._name = name
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity added to Home Assistant."""
+        await super().async_added_to_hass()
+        if self._pending_state_write:
+            self._pending_state_write = False
+            self.async_write_ha_state()
 
     async def async_toggle(self, **kwargs: Any) -> None:
         """Toggle the switch."""
@@ -256,26 +264,33 @@ class LightSwitch(SwitchEntity):
         if is_on < 0:
             return
         self._attr_is_on = bool(is_on)  # Set the state to True (on) or False (off)
-        self.async_write_ha_state()
+        self._write_state_or_defer()
 
     def set_name(self, name: str | None) -> None:
         """Set the name of the sensor."""
         if name is None:
             return
         self._name = name
-        self.async_write_ha_state()
+        self._write_state_or_defer()
 
     def set_ave_name(self, name: str | None) -> None:
         """Set the AVE name of the sensor."""
         if name is not None:
             self._ave_name = name
-            self.async_write_ha_state()
+            self._write_state_or_defer()
 
     def set_address_dec(self, address_dec: int | None) -> None:
         """Set the address_dec attribute of the sensor."""
         if address_dec is not None and self._address_dec != address_dec:
             self._address_dec = address_dec
-            self.async_write_ha_state()
+            self._write_state_or_defer()
+
+    def _write_state_or_defer(self) -> None:
+        """Write state now when possible, otherwise defer until entity attach."""
+        if self.hass is None or self.entity_id is None:
+            self._pending_state_write = True
+            return
+        self.async_write_ha_state()
 
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
