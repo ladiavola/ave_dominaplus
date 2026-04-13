@@ -23,27 +23,33 @@ Control your AVE Dominaplus home automation system directly from Home Assistant!
 
 ## 🛠️ Supported Devices
 
-### ✅ Switches
-- **Fully supported**: Discovered at startup, with names.
+### ✅ Switches (on/off lights)
 - Synced with the **"Get lights"** flag.
 - Supports turning on, off, and toggling.
+- Config toggle allows to choose if they are exposed as lights entities or switch entities.
+
+### ✅ Dimmers (non‑RGB)
+- Discovered at startup when **Get lights** is enabled.
+- Exposes brightness and supports on/off and level setting.
+
+### ✅ Shutters (covers)
+- Discovered when **Get covers** is enabled. Exposed as `cover` entities and support open/close/stop actions and basic position reporting.
 
 ### ✅ Alarm Areas
-- **Supported**: Discovered at startup, with names.
 - Synced with the **"Get antitheft sensor areas"** flag.
 - Provides motion sensor functionality.
 - Includes **"Last cleared"** and **"Last revealed"** timestamps as attributes.
 - *Note: "Armed" and "Triggered" states are not yet exposed as entities.*
 
 ### ✅ Individual Alarm Sensors
-- **Supported**: Discovered when the first event is triggered.
+- Discovered when the first event is triggered.
 - Synced with the **"Get individual antitheft sensors"** flag.
 - The system does not provide names, so sensors are auto-named. It is recommended to set custom
    names after discovery.
 - These sensors are sensitive and may trigger quickly; configure accordingly.
 
 ### ✅ Thermostats
-- **Supported** when **"Get thermostats"** is enabled in the config flow.
+- Discovered when **"Get thermostats"** is enabled in the config flow.
 - For each thermostat the integration creates two entities:
   * a **climate** entity representing the controller
   * a **number** entity showing the current temperature offset of the device (–5 °C..+5 °C)
@@ -72,11 +78,11 @@ Control your AVE Dominaplus home automation system directly from Home Assistant!
 
 Other devices are not yet supported either for lack of time or lack of devices at hand
 
-- **Dimmers**: Work in progress
+- **RGB Lights**
 - **Scenarios**: Backend discovery is ready; no entity is exposed
 - **Areas**: Feel free to come with a plan to add AVE areas and device area assignments without clashing with the HA areas
 - **Economizers**: Not yet supported
-- **Shutters**: Not yet supported
+- **Metered outlets**: Not yet supported
 
 ---
 
@@ -111,13 +117,17 @@ has been re‑configured.
 
 
 ## ⚠️ Known Issues
+### Multiple webservers for different plants
+- Multiple webservers for different plants are not supported yet. Multiple controllers for the same plant are supported, but separate plant setups may cause device ID clashes. Support for multi‑plant setups is under development.
 
-### Multiple Webservers for Different Plants
-- Currently, multiple webservers for different plants are **not supported**. Multiple controllers for the same plant are supported, but separate plant setups may cause device ID clashes. Support for multi-plant setups is being explored.
+### Webserver connection after shutdown
+- The integration attempts to re‑establish the WebSocket connection if it is lost. If the connection does not recover, manually reload the integration or restart Home Assistant.
 
 ### Individual sensor alarm states after power outage
-- After a webserver or alarm unit reboot, a brief arm/disarm cycle may be needed for sensors to start reporting state updates. This behavior is due to the alarm system firmware, not the integration.
+- After a webserver or alarm unit reboot, sensors may require a brief arm/disarm cycle before they start reporting state updates. This behavior is caused by the alarm system firmware, not the integration.
 
+### Duplicate entities after plant changes
+- Duplicate entities may appear after changes to plants in the AVE DominaPlus configurator. This is especially likely if a device is deleted, which can change subsequent device IDs. A fix for this issue is tracked here: [#15](https://github.com/emmeoerre/ave_dominaplus/issues/15)
 
 ## 🆘 How to ask for help
 
@@ -131,13 +141,7 @@ When creating a GitHub issue:
 * Search for an existing issue describing the same problem and add additional information there instead
   of opening a duplicate.
 * Do **not** post on unrelated issues; off-topic comments may be removed.
-* Provide as much relevant information as you can:
-  - integration version,
-  - Home Assistant version,
-  - webserver firmware version,
-  - model of the affected device(s),
-  - log output with the `ave_dominaplus` domain set to `debug` (capture the messages
-    emitted when the integration starts).
+* Follow the template provided
 
 
 ---
