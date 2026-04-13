@@ -15,6 +15,7 @@ from .const import (
     AVE_FAMILY_ANTITHEFT,
     AVE_FAMILY_ANTITHEFT_AREA,
     AVE_FAMILY_CAMERA,
+    AVE_FAMILY_DIMMER,
     AVE_FAMILY_KEYPAD,
     AVE_FAMILY_MOTION_SENSOR,
     AVE_FAMILY_SCENARIO,
@@ -88,6 +89,9 @@ class AveWebServer:
         self.switches: dict = {}  # Track switches by unique ID
         self.async_add_sw_entities: Any = None
         self.update_switch: Any = None
+        self.lights: dict = {}  # Track dimmer lights by unique ID
+        self.async_add_lg_entities: Any = None
+        self.update_light: Any = None
         self.thermostats: dict = {}  # Track thermostats by ID
         self.all_thermostats_raw: dict = {}  # Track thermostats that are not on the map by device ID
         self.async_add_th_entities: Any = None
@@ -110,6 +114,10 @@ class AveWebServer:
         """Set the set_update_switch method for switches."""
         self.update_switch = func
 
+    async def set_update_light(self, func) -> None:
+        """Set the set_update_light method for dimmer lights."""
+        self.update_light = func
+
     async def set_update_thermostat(self, func) -> None:
         """Set the set_update_thermostat method for thermostats."""
         self.update_thermostat = func
@@ -123,6 +131,11 @@ class AveWebServer:
         """Set the async_add_entities method for switches."""
         if self.async_add_sw_entities is None:
             self.async_add_sw_entities = func
+
+    async def set_async_add_lg_entities(self, func) -> None:
+        """Set the async_add_entities method for dimmer lights."""
+        if self.async_add_lg_entities is None:
+            self.async_add_lg_entities = func
 
     async def set_async_add_th_entities(self, func) -> None:
         """Set the async_add_entities method for thermostats."""
@@ -226,8 +239,9 @@ class AveWebServer:
             return
 
         if self.settings.fetch_lights:
-            # Get status by family type 1 (lights)
+            # Get status by family type 1 (switches) and 2 (dimmers)
             await self.send_ws_command("GSF", [str(AVE_FAMILY_SWITCH)])
+            await self.send_ws_command("GSF", [str(AVE_FAMILY_DIMMER)])
 
         # Get status by family type 12 (motion detection areas)
         if self.settings.fetch_sensor_areas:
@@ -436,6 +450,9 @@ class AveWebServer:
                 pass
             elif device_type == AVE_FAMILY_SWITCH and self.settings.fetch_lights:
                 self.update_switch(self, device_type, device_id, device_status, None)
+            elif device_type == AVE_FAMILY_DIMMER and self.settings.fetch_lights:
+                if self.update_light is not None:
+                    self.update_light(self, device_type, device_id, device_status, None)
             # elif device_type in [12, 13]:
             #     _LOGGER.debug(
             #         "Received async Antitheft status update. "
@@ -611,6 +628,14 @@ class AveWebServer:
                 )
                 # send_mqtt_message(device_id, device_status)
 
+        if parameters[0] == str(AVE_FAMILY_DIMMER):
+            for record in records:
+                device_id, device_status = int(record[0]), int(record[1])
+                if self.update_light is not None:
+                    self.update_light(
+                        self, AVE_FAMILY_DIMMER, device_id, device_status, None
+                    )
+
     def manage_ldi_li2(
         self, parameters: list[Any], records: list[list[Any]], command: str
     ) -> None:
@@ -673,6 +698,17 @@ class AveWebServer:
                     self, AVE_FAMILY_SWITCH, device_id, -1, device_name, address_dec
                 )
                 # Light
+            elif device_type == AVE_FAMILY_DIMMER:
+                if self.update_light is not None:
+                    self.update_light(
+                        self,
+                        AVE_FAMILY_DIMMER,
+                        device_id,
+                        -1,
+                        device_name,
+                        address_dec,
+                    )
+                # Dimmer light
             elif device_type == AVE_FAMILY_THERMOSTAT:
                 # All thermostats
                 self.all_thermostats_raw[device_id] = {
@@ -773,6 +809,18 @@ class AveWebServer:
         """Toggle the switch."""
         if self.ws_conn and not self.ws_conn.closed:
             await self.send_ws_command("EBI", [str(device_id), "10"])
+        else:
+            _LOGGER.error("WebSocket is not connected")
+
+    async def dimmer_set_level(self, device_id: int, level: int) -> None:
+        """Set dimmer level using AVE range 0..31."""
+        clamped_level = max(0, min(31, int(level)))
+        if clamped_level == 0:
+            await self.switch_turn_off(device_id)
+            return
+
+        if self.ws_conn and not self.ws_conn.closed:
+            await self.send_ws_command("EBI", [str(device_id), str(clamped_level)])
         else:
             _LOGGER.error("WebSocket is not connected")
 
