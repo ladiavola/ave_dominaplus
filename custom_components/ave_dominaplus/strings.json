@@ -13,12 +13,14 @@
           "fetch_sensor_areas": "Get antitheft sensor areas",
           "fetch_sensors": "Get individual antitheft sensors",
           "fetch_lights": "Get lights",
+            "onOffLightsAsSwitch": "On/Off lights as switches",
           "fetch_thermostats": "Get thermostats"
         },
         "data_description": {
           "ip_address": "The webserver must be reachable from the Home Assistant instance.",
           "get_entities_names": "Will use the entities names and IDs as set in the Domina Plus system.",
-          "fetch_sensors": "Will be discovered at the first event they fire. May create many entries in big systems."
+            "fetch_sensors": "Will be discovered at the first event they fire. May create many entries in big systems.",
+            "onOffLightsAsSwitch": "Use simple switch entities for On/Off lights (AVE family 1)."
         }
       },
       "reconfigure": {
@@ -33,12 +35,14 @@
           "fetch_sensor_areas": "Get antitheft sensor areas",
           "fetch_sensors": "Get individual antitheft sensors",
           "fetch_lights": "Get lights",
+            "onOffLightsAsSwitch": "On/Off lights as switches",
           "fetch_thermostats": "Get thermostats"
         },
         "data_description": {
           "ip_address": "The webserver must be reachable from the Home Assistant instance.",
           "get_entities_names": "Will use the entities names and IDs as set in the Domina Plus system.",
-          "fetch_sensors": "Will be discovered at the first event they fire. May create many entries in big systems."
+            "fetch_sensors": "Will be discovered at the first event they fire. May create many entries in big systems.",
+            "onOffLightsAsSwitch": "Use simple switch entities for On/Off lights (AVE family 1)."
         }
       },
       "zeroconf_confirm": {
@@ -54,12 +58,14 @@
           "fetch_sensor_areas": "Get antitheft sensor areas",
           "fetch_sensors": "Get individual antitheft sensors",
           "fetch_lights": "Get lights",
+            "onOffLightsAsSwitch": "On/Off lights as switches",
           "fetch_thermostats": "Get thermostats"
         },
         "data_description": {
           "ip_address": "The webserver must be reachable from the Home Assistant instance.",
           "get_entities_names": "Will use the entities names and IDs as set in the Domina Plus system.",
-          "fetch_sensors": "Will be discovered at the first event they fire. May create many entries in big systems."
+            "fetch_sensors": "Will be discovered at the first event they fire. May create many entries in big systems.",
+            "onOffLightsAsSwitch": "Use simple switch entities for On/Off lights (AVE family 1)."
         }
       }
     },

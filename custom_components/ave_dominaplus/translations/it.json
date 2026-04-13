@@ -10,12 +10,14 @@
           "fetch_sensor_areas": "Importa le aree antifurto",
           "fetch_sensors": "Importa i sensori antifurto individuali",
           "fetch_lights": "Importa le luci",
+            "onOffLightsAsSwitch": "Luci On/Off come interruttori",
           "fetch_thermostats": "Importa i termostati"
         },
         "data_description": {
           "ip_address": "Il webserver deve essere raggiungibile dall'istanza Home Assistant.",
           "get_entities_names": "Usa nomi e identificativi entità configurati nel sistema Domina Plus.",
-          "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità."
+            "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità.",
+            "onOffLightsAsSwitch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
         }
       },
       "reconfigure": {
@@ -27,12 +29,14 @@
           "fetch_sensor_areas": "Importa le aree antifurto",
           "fetch_sensors": "Importa i sensori antifurto individuali",
           "fetch_lights": "Importa le luci",
+            "onOffLightsAsSwitch": "Luci On/Off come interruttori",
           "fetch_thermostats": "Importa i termostati"
         },
         "data_description": {
           "ip_address": "Il webserver deve essere raggiungibile dall'istanza Home Assistant.",
           "get_entities_names": "Usa nomi e identificativi entità configurati nel sistema Domina Plus.",
-          "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità."
+            "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità.",
+            "onOffLightsAsSwitch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
         }
       },
       "zeroconf_confirm": {
@@ -48,12 +52,14 @@
           "fetch_sensor_areas": "Importa le aree antifurto",
           "fetch_sensors": "Importa i sensori antifurto individuali",
           "fetch_lights": "Importa le luci",
+            "onOffLightsAsSwitch": "Luci On/Off come interruttori",
           "fetch_thermostats": "Importa i termostati"
         },
         "data_description": {
           "ip_address": "Il webserver deve essere raggiungibile dall'istanza Home Assistant.",
           "get_entities_names": "Usa nomi e identificativi entità configurati nel sistema Domina Plus.",
-          "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità."
+            "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità.",
+            "onOffLightsAsSwitch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
         }
       }
     },
