@@ -18,8 +18,8 @@ from .const import (
     AVE_FAMILY_DIMMER,
     AVE_FAMILY_KEYPAD,
     AVE_FAMILY_MOTION_SENSOR,
+    AVE_FAMILY_ONOFFLIGHTS,
     AVE_FAMILY_SCENARIO,
-    AVE_FAMILY_SWITCH,
     AVE_FAMILY_THERMOSTAT,
 )
 
@@ -51,6 +51,7 @@ class AveWebServerSettings:
         self.fetch_lights = False
         self.fetch_scenarios = False
         self.fetch_thermostats = False
+        self.onOffLightsAsSwitch = True
 
 
 class AveWebServer:
@@ -71,6 +72,9 @@ class AveWebServer:
             self.settings.fetch_sensors = settings_data["fetch_sensors"]
             self.settings.fetch_lights = settings_data["fetch_lights"]
             self.settings.fetch_thermostats = settings_data["fetch_thermostats"]
+            self.settings.onOffLightsAsSwitch = settings_data.get(
+                "onOffLightsAsSwitch", True
+            )
         except KeyError:
             _LOGGER.exception("Missing key in settings data")
         self.mac_address = ""
@@ -240,7 +244,7 @@ class AveWebServer:
 
         if self.settings.fetch_lights:
             # Get status by family type 1 (switches) and 2 (dimmers)
-            await self.send_ws_command("GSF", [str(AVE_FAMILY_SWITCH)])
+            await self.send_ws_command("GSF", [str(AVE_FAMILY_ONOFFLIGHTS)])
             await self.send_ws_command("GSF", [str(AVE_FAMILY_DIMMER)])
 
         # Get status by family type 12 (motion detection areas)
@@ -448,8 +452,13 @@ class AveWebServer:
             if device_id > 200000:
                 # Devices with ID > 2000000 must be scenarios or something...
                 pass
-            elif device_type == AVE_FAMILY_SWITCH and self.settings.fetch_lights:
-                self.update_switch(self, device_type, device_id, device_status, None)
+            elif device_type == AVE_FAMILY_ONOFFLIGHTS and self.settings.fetch_lights:
+                if self.settings.onOffLightsAsSwitch:
+                    self.update_switch(
+                        self, device_type, device_id, device_status, None
+                    )
+                else:
+                    self.update_light(self, device_type, device_id, device_status, None)
             elif device_type == AVE_FAMILY_DIMMER and self.settings.fetch_lights:
                 if self.update_light is not None:
                     self.update_light(self, device_type, device_id, device_status, None)
@@ -620,12 +629,17 @@ class AveWebServer:
                     self, int(parameters[0]), device_id, device_status
                 )
 
-        if parameters[0] == str(AVE_FAMILY_SWITCH):
+        if parameters[0] == str(AVE_FAMILY_ONOFFLIGHTS):
             for record in records:
                 device_id, device_status = int(record[0]), int(record[1])
-                self.update_switch(
-                    self, AVE_FAMILY_SWITCH, device_id, device_status, None
-                )
+                if self.settings.onOffLightsAsSwitch:
+                    self.update_switch(
+                        self, AVE_FAMILY_ONOFFLIGHTS, device_id, device_status, None
+                    )
+                else:
+                    self.update_light(
+                        self, AVE_FAMILY_ONOFFLIGHTS, device_id, device_status, None
+                    )
                 # send_mqtt_message(device_id, device_status)
 
         if parameters[0] == str(AVE_FAMILY_DIMMER):
@@ -693,10 +707,25 @@ class AveWebServer:
             elif device_type == AVE_FAMILY_KEYPAD:
                 # Keypad
                 pass
-            elif device_type == AVE_FAMILY_SWITCH:
-                self.update_switch(
-                    self, AVE_FAMILY_SWITCH, device_id, -1, device_name, address_dec
-                )
+            elif device_type == AVE_FAMILY_ONOFFLIGHTS:
+                if self.settings.onOffLightsAsSwitch:
+                    self.update_switch(
+                        self,
+                        AVE_FAMILY_ONOFFLIGHTS,
+                        device_id,
+                        -1,
+                        device_name,
+                        address_dec,
+                    )
+                else:
+                    self.update_light(
+                        self,
+                        AVE_FAMILY_ONOFFLIGHTS,
+                        device_id,
+                        -1,
+                        device_name,
+                        address_dec,
+                    )
                 # Light
             elif device_type == AVE_FAMILY_DIMMER:
                 if self.update_light is not None:

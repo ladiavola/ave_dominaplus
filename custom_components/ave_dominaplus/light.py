@@ -10,60 +10,11 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import AVE_FAMILY_DIMMER, BRAND_PREFIX
+from .const import AVE_FAMILY_DIMMER, AVE_FAMILY_ONOFFLIGHTS, BRAND_PREFIX
+from .uid_v2 import build_uid, find_unique_id, parse_uid
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def parse_uid(unique_id: str) -> tuple[str | None, int, int, int | None] | None:
-    """Parse mac, family, device_id and optional address_dec from a light unique_id."""
-    parts = unique_id.split("_")
-    try:
-        family_idx = parts.index("family")
-    except ValueError:
-        return None
-
-    if len(parts) <= family_idx + 2:
-        return None
-
-    mac_address = "_".join(parts[1:family_idx]).strip() or None
-
-    family = int(parts[family_idx + 1])
-    ave_device_id = int(parts[family_idx + 2])
-
-    address_dec = None
-    if len(parts) > family_idx + 3:
-        address_raw = parts[family_idx + 3].strip()
-        if address_raw:
-            if address_raw.lower().startswith("0x"):
-                address_dec = int(address_raw, 16)
-            else:
-                address_dec = int(address_raw, 10)
-
-    return mac_address, family, ave_device_id, address_dec
-
-
-def find_unique_id(
-    server: AveWebServer,
-    family: int,
-    ave_device_id: int,
-    mac_address: str | None = None,
-) -> str | None:
-    """Find an already registered light unique_id by family and AVE device id."""
-    for unique_id in server.lights:
-        try:
-            parsed = parse_uid(unique_id)
-        except ValueError:
-            continue
-        if parsed is None:
-            continue
-        parsed_mac, parsed_family, parsed_device_id, _parsed_address_dec = parsed
-        if mac_address and parsed_mac and parsed_mac != mac_address:
-            continue
-        if parsed_family == family and parsed_device_id == ave_device_id:
-            return unique_id
-    return None
 
 
 async def async_setup_entry(
@@ -116,7 +67,7 @@ async def adopt_existing_lights(server: AveWebServer, entry: ConfigEntry) -> Non
                 )
                 continue
 
-            if family != AVE_FAMILY_DIMMER:
+            if family not in (AVE_FAMILY_DIMMER, AVE_FAMILY_ONOFFLIGHTS):
                 continue
 
             name = None
@@ -139,19 +90,12 @@ async def adopt_existing_lights(server: AveWebServer, entry: ConfigEntry) -> Non
             server.lights[entity.unique_id] = light
             server.async_add_lg_entities([light])
             _LOGGER.info(
-                "Adopted existing dimmer entity with name %s with unique_id %s",
+                "Adopted existing light entity with name %s with unique_id %s",
                 light.name,
                 light.unique_id,
             )
     except Exception:
         _LOGGER.exception("Error adopting existing light entities")
-
-
-def set_light_uid(
-    webserver: AveWebServer, family: int, ave_device_id: int, address_dec: int
-) -> str:
-    """Set the unique ID for the light."""
-    return f"ave_{webserver.mac_address}_family_{family}_{ave_device_id}_0x{address_dec:02X}"
 
 
 def update_light(
@@ -162,8 +106,8 @@ def update_light(
     name: str | None = None,
     address_dec: int | None = None,
 ) -> None:
-    """Create or update dimmer light entities from webserver events."""
-    if family != AVE_FAMILY_DIMMER:
+    """Create or update light entities from webserver events."""
+    if family not in (AVE_FAMILY_DIMMER, AVE_FAMILY_ONOFFLIGHTS):
         _LOGGER.debug(
             "Not updating light for family %s, device_id %s",
             family,
@@ -176,10 +120,10 @@ def update_light(
 
     unique_id = None
     if address_dec is not None:
-        unique_id = set_light_uid(server, family, ave_device_id, address_dec)
+        unique_id = build_uid(server.mac_address, family, ave_device_id, address_dec)
         if unique_id not in server.lights:
             existing_unique_id = find_unique_id(
-                server,
+                server.lights,
                 family,
                 ave_device_id,
                 server.mac_address or None,
@@ -188,7 +132,7 @@ def update_light(
                 unique_id = existing_unique_id
     else:
         unique_id = find_unique_id(
-            server,
+            server.lights,
             family,
             ave_device_id,
             server.mac_address or None,
@@ -218,7 +162,9 @@ def update_light(
             )
             return
         if unique_id is None:
-            unique_id = set_light_uid(server, family, ave_device_id, address_dec)
+            unique_id = build_uid(
+                server.mac_address, family, ave_device_id, address_dec
+            )
         entity_name = None
         entity_ave_name = None
         if name is not None and server.settings.get_entity_names:
@@ -236,7 +182,7 @@ def update_light(
             address_dec=address_dec,
         )
 
-        _LOGGER.info("Creating new dimmer light entity %s", name)
+        _LOGGER.info("Creating new light entity %s with unique_id %s", name, unique_id)
         server.lights[unique_id] = light
         server.async_add_lg_entities([light])
 
@@ -310,13 +256,18 @@ class DimmerLight(LightEntity):
         if not self._webserver:
             return
 
-        brightness_ha = kwargs.get(ATTR_BRIGHTNESS)
-        if brightness_ha is None:
+        if self.family == AVE_FAMILY_ONOFFLIGHTS:
             await self._webserver.switch_turn_on(self.ave_device_id)
             return
 
-        brightness_ave = max(1, int((int(brightness_ha) / 255) * 31))
-        await self._webserver.dimmer_set_level(self.ave_device_id, brightness_ave)
+        if self.family == AVE_FAMILY_DIMMER:
+            brightness_ha = kwargs.get(ATTR_BRIGHTNESS)
+            if brightness_ha is None:
+                await self._webserver.switch_turn_on(self.ave_device_id)
+                return
+
+            brightness_ave = max(1, int((int(brightness_ha) / 255) * 31))
+            await self._webserver.dimmer_set_level(self.ave_device_id, brightness_ave)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the light off."""

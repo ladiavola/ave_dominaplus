@@ -10,7 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import AVE_FAMILY_SCENARIO, AVE_FAMILY_SWITCH, BRAND_PREFIX
+from .const import AVE_FAMILY_ONOFFLIGHTS, AVE_FAMILY_SCENARIO, BRAND_PREFIX
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ def update_switch(
     address_dec=None,
 ) -> None:
     """Update switch based on the family and device status."""
-    if family == AVE_FAMILY_SWITCH:
+    if family == AVE_FAMILY_ONOFFLIGHTS:
         if not server.settings.fetch_lights:
             return
     else:
@@ -280,7 +280,7 @@ class LightSwitch(SwitchEntity):
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
         suffix = "sensor type " + str(self.family)
-        if self.family == AVE_FAMILY_SWITCH:
+        if self.family == AVE_FAMILY_ONOFFLIGHTS:
             suffix = "light"
         elif self.family == AVE_FAMILY_SCENARIO:
             suffix = "scenario"
