@@ -18,8 +18,8 @@ from .const import (
     AVE_FAMILY_SHUTTER_HUNG,
     AVE_FAMILY_SHUTTER_ROLLING,
     AVE_FAMILY_SHUTTER_SLIDING,
-    BRAND_PREFIX,
 )
+from .device_info import build_endpoint_device_info
 from .uid_v2 import build_uid, find_unique_id, parse_uid
 from .web_server import AveWebServer
 
@@ -157,18 +157,28 @@ def update_cover(
     already_exists = unique_id in server.covers if unique_id is not None else False
 
     if already_exists and unique_id is not None:
-        cover: AveCover = server.covers[unique_id]
+        allow_name_update = (
+            name is not None
+            and server.settings.get_entity_names
+            and not check_name_changed(server.hass, unique_id)
+        )
+        cover = server.covers.get(unique_id)
+        if cover is None:
+            return
 
-        if device_status in (1, 2, 3, 4, 5):
-            cover.update_state(device_status)
-
-        if name is not None and server.settings.get_entity_names:
-            cover.set_ave_name(name)
-            if not check_name_changed(server.hass, unique_id):
-                cover.set_name(name)
-
-        if address_dec is not None:
-            cover.set_address_dec(address_dec)
+        try:
+            cover.handle_webserver_update(
+                device_status=device_status,
+                name=name,
+                address_dec=address_dec,
+                allow_name_update=allow_name_update,
+            )
+        except Exception:
+            _LOGGER.exception(
+                "Failed updating cover entity; dropping stale runtime reference",
+                extra={"unique_id": unique_id},
+            )
+            server.covers.pop(unique_id, None)
     else:
         if address_dec is None:
             _LOGGER.error(
@@ -222,6 +232,7 @@ def check_name_changed(hass: HomeAssistant, unique_id: str) -> bool:
 class AveCover(CoverEntity):
     """Representation of an AVE cover."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
     _attr_supported_features = (
         CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
@@ -247,6 +258,9 @@ class AveCover(CoverEntity):
         self._ave_name = ave_name
         self._address_dec = address_dec
         self._pending_state_write = False
+        self._attr_device_info = build_endpoint_device_info(
+            webserver, family, ave_device_id
+        )
 
         self._attr_device_class = CoverDeviceClass.SHUTTER
 
@@ -269,8 +283,29 @@ class AveCover(CoverEntity):
 
     async def async_will_remove_from_hass(self) -> None:
         """Handle entity removal from Home Assistant."""
+        self._webserver.covers.pop(self._unique_id, None)
         self._webserver.unregister_availability_entity(self)
         await super().async_will_remove_from_hass()
+
+    def handle_webserver_update(
+        self,
+        *,
+        device_status: int,
+        name: str | None = None,
+        address_dec: int | None = None,
+        allow_name_update: bool = False,
+    ) -> None:
+        """Apply a websocket cover update in a single guarded path."""
+        if device_status in (1, 2, 3, 4, 5):
+            self.update_state(device_status)
+
+        if name is not None and self._webserver.settings.get_entity_names:
+            self.set_ave_name(name)
+            if allow_name_update:
+                self.set_name(name)
+
+        if address_dec is not None:
+            self.set_address_dec(address_dec)
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
@@ -393,11 +428,11 @@ class AveCover(CoverEntity):
     def build_name(self) -> str:
         """Build default entity name."""
         if self.family == AVE_FAMILY_SHUTTER_ROLLING:
-            suffix = "shutter"
+            suffix = "Shutter"
         elif self.family == AVE_FAMILY_SHUTTER_SLIDING:
-            suffix = "blind"
+            suffix = "Blind"
         elif self.family == AVE_FAMILY_SHUTTER_HUNG:
-            suffix = "window"
+            suffix = "Window"
         else:
-            suffix = "cover"
-        return f"{BRAND_PREFIX} {suffix} {self.ave_device_id}"
+            suffix = "Cover"
+        return f"{suffix} {self.ave_device_id}"

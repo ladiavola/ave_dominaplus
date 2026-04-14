@@ -10,7 +10,8 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import AVE_FAMILY_DIMMER, AVE_FAMILY_ONOFFLIGHTS, BRAND_PREFIX
+from .const import AVE_FAMILY_DIMMER, AVE_FAMILY_ONOFFLIGHTS
+from .device_info import build_endpoint_device_info
 from .uid_v2 import build_uid, find_unique_id, parse_uid
 from .web_server import AveWebServer
 
@@ -142,18 +143,19 @@ def update_light(
     already_exists = unique_id in server.lights if unique_id is not None else False
 
     if already_exists and unique_id is not None:
+        allow_name_update = (
+            name is not None
+            and server.settings.get_entity_names
+            and not check_name_changed(server.hass, unique_id)
+        )
+
         light: DimmerLight = server.lights[unique_id]
-
-        if device_status >= 0:
-            light.update_state(device_status)
-
-        if name is not None and server.settings.get_entity_names:
-            light.set_ave_name(name)
-            if not check_name_changed(server.hass, unique_id):
-                light.set_name(name)
-
-        if address_dec is not None:
-            light.set_address_dec(address_dec)
+        light.handle_webserver_update(
+            device_status=device_status,
+            name=name,
+            address_dec=address_dec,
+            allow_name_update=allow_name_update,
+        )
     else:
         if address_dec is None:
             _LOGGER.error(
@@ -206,6 +208,7 @@ def check_name_changed(hass: HomeAssistant, unique_id: str) -> bool:
 class DimmerLight(LightEntity):
     """Representation of an AVE dimmer light."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
     _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
     _attr_color_mode = ColorMode.BRIGHTNESS
@@ -231,6 +234,9 @@ class DimmerLight(LightEntity):
         self._address_dec = address_dec
         self._brightness = None
         self._pending_state_write = False
+        self._attr_device_info = build_endpoint_device_info(
+            webserver, family, ave_device_id
+        )
 
         if self.family == AVE_FAMILY_DIMMER:
             self._attr_supported_color_modes = {ColorMode.BRIGHTNESS}
@@ -258,8 +264,29 @@ class DimmerLight(LightEntity):
 
     async def async_will_remove_from_hass(self) -> None:
         """Handle entity removal from Home Assistant."""
+        self._webserver.lights.pop(self._unique_id, None)
         self._webserver.unregister_availability_entity(self)
         await super().async_will_remove_from_hass()
+
+    def handle_webserver_update(
+        self,
+        *,
+        device_status: int,
+        name: str | None = None,
+        address_dec: int | None = None,
+        allow_name_update: bool = False,
+    ) -> None:
+        """Apply a websocket light update routed through lifecycle subscriptions."""
+        if device_status >= 0:
+            self.update_state(device_status)
+
+        if name is not None and self._webserver.settings.get_entity_names:
+            self.set_ave_name(name)
+            if allow_name_update:
+                self.set_name(name)
+
+        if address_dec is not None:
+            self.set_address_dec(address_dec)
 
     async def async_toggle(self, **kwargs: Any) -> None:
         """Toggle the light."""
@@ -383,4 +410,6 @@ class DimmerLight(LightEntity):
 
     def build_name(self) -> str:
         """Build default entity name."""
-        return f"{BRAND_PREFIX} dimmer {self.ave_device_id}"
+        if self.family == AVE_FAMILY_ONOFFLIGHTS:
+            return f"Light {self.ave_device_id}"
+        return f"Dimmer {self.ave_device_id}"

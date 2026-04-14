@@ -18,12 +18,13 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PRECISION_TENTHS, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .ave_map import AveMapCommand
 from .ave_thermostat import AveThermostatProperties
-from .const import AVE_FAMILY_THERMOSTAT, BRAND_PREFIX
+from .const import AVE_FAMILY_THERMOSTAT
+from .device_info import build_endpoint_device_info
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -337,6 +338,7 @@ def check_name_changed(hass: HomeAssistant, unique_id: str) -> bool:
 class AveThermostat(ClimateEntity):
     """Representation of a thermostat controller."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
 
     _attr_supported_features = (
@@ -374,6 +376,13 @@ class AveThermostat(ClimateEntity):
         self.family = family
         self._webserver = webserver
         self.hass = self._webserver.hass
+        thermostat_name = name or ave_properties.device_name
+        self._attr_device_info = build_endpoint_device_info(
+            webserver,
+            family,
+            ave_properties.device_id,
+            ave_name=thermostat_name,
+        )
         self.ave_properties: AveThermostatProperties = ave_properties
         self.ave_name = ""
         if name is not None:
@@ -657,7 +666,41 @@ class AveThermostat(ClimateEntity):
         if name is None:
             return
         self._name = name
+        self._sync_device_name(name)
         self.async_write_ha_state()
+
+    def _sync_device_name(self, name: str) -> None:
+        """Sync thermostat device name unless user customized it in HA."""
+        if self.hass is None:
+            return
+
+        updated_device_info = build_endpoint_device_info(
+            self._webserver,
+            self.family,
+            self.ave_properties.device_id,
+            ave_name=name,
+        )
+        identifiers = self._attr_device_info.get("identifiers")
+        if not identifiers:
+            return
+
+        device_registry = dr.async_get(self.hass)
+        device_entry = device_registry.async_get_device(identifiers=identifiers)
+        if device_entry is None:
+            return
+
+        # Respect user-chosen device names from the HA UI.
+        if device_entry.name_by_user is not None:
+            return
+
+        resolved_name = updated_device_info.get("name")
+        if resolved_name and device_entry.name != resolved_name:
+            device_registry.async_update_device(
+                device_id=device_entry.id,
+                name=resolved_name,
+            )
+
+        self._attr_device_info = updated_device_info
 
     def set_address_dec(self, address_dec: int | None) -> None:
         """Set the address_dec attribute of the sensor."""
@@ -667,6 +710,4 @@ class AveThermostat(ClimateEntity):
 
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
-        suffix = "thermostat"
-        mac = self._webserver.mac_address if self._webserver else "unknown"
-        return f"{BRAND_PREFIX} {mac} {suffix} {self.ave_properties.device_id}"
+        return f"Thermostat {self.ave_properties.device_id}"

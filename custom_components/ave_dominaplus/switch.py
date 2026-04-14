@@ -10,7 +10,8 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import AVE_FAMILY_ONOFFLIGHTS, AVE_FAMILY_SCENARIO, BRAND_PREFIX
+from .const import AVE_FAMILY_ONOFFLIGHTS, AVE_FAMILY_SCENARIO
+from .device_info import build_endpoint_device_info
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -173,6 +174,7 @@ def check_name_changed(hass: HomeAssistant, unique_id: str) -> bool:
 class LightSwitch(SwitchEntity):
     """Representation of a light switch."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
 
     def __init__(
@@ -196,6 +198,9 @@ class LightSwitch(SwitchEntity):
         self._address_dec = address_dec
         self.hass = self._webserver.hass
         self._pending_state_write = False
+        self._attr_device_info = build_endpoint_device_info(
+            webserver, family, ave_device_id
+        )
 
         if is_on is not None and is_on >= 0:
             self._attr_is_on = bool(is_on)  # Initialize the state
@@ -306,9 +311,9 @@ class LightSwitch(SwitchEntity):
 
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
-        suffix = "sensor type " + str(self.family)
+        suffix = f"Switch {self.family}"
         if self.family == AVE_FAMILY_ONOFFLIGHTS:
-            suffix = "light"
+            suffix = "Light"
         elif self.family == AVE_FAMILY_SCENARIO:
-            suffix = "scenario"
-        return f"{BRAND_PREFIX} {suffix} {self.ave_device_id}"
+            suffix = "Scenario"
+        return f"{suffix} {self.ave_device_id}"

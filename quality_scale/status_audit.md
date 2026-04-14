@@ -77,8 +77,8 @@ Action: keep removal notes aligned with future migration behavior.
 
 14. entity-event-setup
 Status: Missing
-Evidence: callbacks are wired in platform async_setup_entry and webserver object; lifecycle unsubscribe patterns are not implemented at entity level.
-Action: move subscriptions/listeners to async_added_to_hass and register cleanup with async_on_remove/async_will_remove_from_hass.
+Evidence: callbacks are still wired at platform/webserver level, but lights and covers now include lifecycle runtime-map cleanup (pop on async_will_remove_from_hass) and guarded per-entity update handlers to avoid stale-reference exceptions after teardown.
+Action: apply the same lightweight lifecycle cleanup strategy to remaining platforms (switches/binary sensors/climate/offset) or replace callback storage with explicit lifecycle-bound subscriptions integration-wide.
 
 15. entity-unique-id
 Status: Covered
@@ -86,9 +86,9 @@ Evidence: all entities expose unique_id and migration-aware uid_v2 helper exists
 Action: complete migration for legacy IDs where needed.
 
 16. has-entity-name
-Status: Missing
-Evidence: entities define custom name fields but do not set _attr_has_entity_name = True consistently.
-Action: set has_entity_name True for all entities, use None for main entity names where appropriate, and pair with proper device_info.
+Status: Covered
+Evidence: entity platforms now consistently set _attr_has_entity_name = True and use device_info-backed devices with concise generated fallback entity labels.
+Action: preserve current name-update policy: apply AVE name updates only when users have not customized names in Home Assistant.
 
 17. runtime-data
 Status: Covered
@@ -159,15 +159,15 @@ Action: checklist can be treated as satisfied-by-scope; if auth is introduced, a
 
 10. test-coverage
 Status: Missing
-Evidence: no integration test suite.
-Action: create tests for setup, unload, websocket parsing, entities, diagnostics, and config flow; target >95% module coverage.
+Evidence: pytest suite now exists with config flow, setup/unload, and device info tests, but broader module coverage is still below the Gold requirement target.
+Action: extend tests across runtime websocket parsing, entity platforms, and diagnostics to exceed >95% coverage.
 
 ## Gold
 
 1. devices
-Status: Missing
-Evidence: entities do not provide device_info; entities are not grouped under device registry devices.
-Action: add device_info for hub and end-devices (identifiers/connections/manufacturer/model/sw).
+Status: Covered
+Evidence: entities provide device_info with a stable hub device plus grouped child devices linked via via_device (lighting, covers, antitheft areas, antitheft sensors, scenarios, and per-thermostat grouping).
+Action: keep grouping identifiers stable to avoid user-visible device migration churn.
 
 2. diagnostics
 Status: Covered
@@ -265,9 +265,9 @@ Evidence: no issue_registry or repair flow integration.
 Action: raise actionable repair issues for unsupported firmware/protocol mismatches and provide recovery guidance.
 
 21. stale-devices
-Status: Missing
-Evidence: device registry handling is absent, so stale device cleanup path is absent.
-Action: once device_info exists, remove stale devices automatically or implement async_remove_config_entry_device checks.
+Status: Covered
+Evidence: setup now removes orphan AVE devices from the device registry (no linked entities), and async_remove_config_entry_device allows UI removal only when a device is entity-free.
+Action: keep cleanup identifier filters stable when introducing new grouped device keys.
 
 ## Platinum
 

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
 from custom_components.ave_dominaplus import (
+    _async_cleanup_stale_devices,
+    async_remove_config_entry_device,
     async_setup,
     async_setup_entry,
     async_unload_entry,
@@ -134,3 +137,103 @@ async def test_async_unload_entry_no_disconnect_on_failure(
     assert result is False
     unload_platforms.assert_awaited_once()
     mock_webserver.disconnect.assert_not_awaited()
+
+
+async def test_cleanup_stale_devices_removes_orphans(
+    hass: HomeAssistant,
+    mock_config_entry,
+) -> None:
+    """Cleanup should remove AVE devices with no linked entities."""
+    mock_device_registry = Mock()
+    mock_device_registry.async_remove_device = Mock()
+    mock_entity_registry = Mock()
+
+    stale_device = SimpleNamespace(
+        id="stale-device",
+        identifiers={(DOMAIN, "endpoint_entry-123_old")},
+    )
+    active_device = SimpleNamespace(
+        id="active-device",
+        identifiers={(DOMAIN, "endpoint_entry-123_lighting")},
+    )
+    foreign_device = SimpleNamespace(
+        id="foreign-device",
+        identifiers={("other_domain", "dev")},
+    )
+
+    with (
+        patch(
+            "custom_components.ave_dominaplus.dr.async_get",
+            return_value=mock_device_registry,
+        ),
+        patch(
+            "custom_components.ave_dominaplus.er.async_get",
+            return_value=mock_entity_registry,
+        ),
+        patch(
+            "custom_components.ave_dominaplus.dr.async_entries_for_config_entry",
+            return_value=[stale_device, active_device, foreign_device],
+        ),
+        patch(
+            "custom_components.ave_dominaplus.er.async_entries_for_device",
+            side_effect=[[], [SimpleNamespace(entity_id="light.x")]],
+        ) as entries_for_device,
+    ):
+        await _async_cleanup_stale_devices(hass, mock_config_entry)
+
+    mock_device_registry.async_remove_device.assert_called_once_with("stale-device")
+    assert entries_for_device.call_count == 2
+
+
+async def test_async_remove_config_entry_device_only_allows_empty_device(
+    hass: HomeAssistant,
+    mock_config_entry,
+) -> None:
+    """Config entry device removal should be blocked when entities exist."""
+    mock_entity_registry = Mock()
+    device_entry = SimpleNamespace(id="device-1")
+
+    with (
+        patch(
+            "custom_components.ave_dominaplus.er.async_get",
+            return_value=mock_entity_registry,
+        ),
+        patch(
+            "custom_components.ave_dominaplus.er.async_entries_for_device",
+            return_value=[SimpleNamespace(entity_id="climate.t1")],
+        ),
+    ):
+        can_remove = await async_remove_config_entry_device(
+            hass,
+            mock_config_entry,
+            device_entry,
+        )
+
+    assert can_remove is False
+
+
+async def test_async_remove_config_entry_device_allows_orphan(
+    hass: HomeAssistant,
+    mock_config_entry,
+) -> None:
+    """Config entry device removal should be allowed when no entities exist."""
+    mock_entity_registry = Mock()
+    device_entry = SimpleNamespace(id="device-1")
+
+    with (
+        patch(
+            "custom_components.ave_dominaplus.er.async_get",
+            return_value=mock_entity_registry,
+        ),
+        patch(
+            "custom_components.ave_dominaplus.er.async_entries_for_device",
+            return_value=[],
+        ),
+    ):
+        can_remove = await async_remove_config_entry_device(
+            hass,
+            mock_config_entry,
+            device_entry,
+        )
+
+    assert can_remove is True

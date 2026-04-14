@@ -10,7 +10,8 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import AVE_FAMILY_THERMOSTAT, BRAND_PREFIX
+from .const import AVE_FAMILY_THERMOSTAT
+from .device_info import build_endpoint_device_info
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -171,6 +172,7 @@ def check_name_changed(hass: HomeAssistant, unique_id: str) -> bool:
 class ThermostatOffset(SensorEntity):
     """Representation of a thermostat offset."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
 
     _attr_native_max_value = 5.0
@@ -198,6 +200,12 @@ class ThermostatOffset(SensorEntity):
         self.hass = self._webserver.hass
         self._address_dec = address_dec
         self._pending_state_write = False
+        self._attr_device_info = build_endpoint_device_info(
+            webserver,
+            family,
+            ave_device_id,
+            ave_name=ave_name,
+        )
 
         if name is None:
             if webserver.settings.get_entity_names:
@@ -288,10 +296,8 @@ class ThermostatOffset(SensorEntity):
 
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
-        suffix = "offset for thermostat"
-        mac = self._webserver.mac_address if self._webserver else "unknown"
         device_name = self._ave_name or self.ave_device_id
-        return f"{BRAND_PREFIX} {mac} {suffix} {device_name}"
+        return f"Thermostat Offset {device_name}"
 
     def _write_state_or_defer(self) -> None:
         """Write state now when possible, otherwise defer until entity attach."""

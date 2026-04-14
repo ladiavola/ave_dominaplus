@@ -1,0 +1,178 @@
+"""Tests for binary sensor update flow."""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock, patch
+
+from custom_components.ave_dominaplus.binary_sensor import (
+    AveHubStatusBinarySensor,
+    MotionBinarySensor,
+    set_sensor_uid,
+    update_binary_sensor,
+)
+from custom_components.ave_dominaplus.const import (
+    AVE_FAMILY_ANTITHEFT_AREA,
+    AVE_FAMILY_MOTION_SENSOR,
+)
+from custom_components.ave_dominaplus.web_server import AveWebServer
+from homeassistant.core import HomeAssistant
+
+
+def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
+    """Build a webserver with defaults suitable for binary sensor tests."""
+    settings: dict[str, object] = {
+        "ip_address": "192.168.1.10",
+        "get_entities_names": True,
+        "fetch_sensor_areas": True,
+        "fetch_sensors": True,
+        "fetch_lights": True,
+        "fetch_covers": True,
+        "fetch_thermostats": True,
+        "onOffLightsAsSwitch": True,
+    }
+    settings.update(overrides)
+    server = AveWebServer(settings, hass)
+    server.mac_address = "aa:bb:cc:dd:ee:ff"
+    server.async_add_bs_entities = Mock()
+    server.register_availability_entity = Mock()
+    server.unregister_availability_entity = Mock()
+    return server
+
+
+def test_update_binary_sensor_creates_motion_sensor(hass: HomeAssistant) -> None:
+    """Motion updates should create motion binary sensors."""
+    server = _new_server(hass)
+
+    update_binary_sensor(server, AVE_FAMILY_MOTION_SENSOR, 8, 1, name="Ignored")
+
+    unique_id = set_sensor_uid(AVE_FAMILY_MOTION_SENSOR, 8)
+    assert unique_id in server.binary_sensors
+    created = server.binary_sensors[unique_id]
+    assert created.name == "Antitheft Sensor 8"
+    server.async_add_bs_entities.assert_called_once()
+
+
+def test_update_binary_sensor_creates_area_sensor_with_name(hass: HomeAssistant) -> None:
+    """Area updates should keep AVE names when enabled."""
+    server = _new_server(hass, get_entities_names=True)
+
+    update_binary_sensor(server, AVE_FAMILY_ANTITHEFT_AREA, 3, 0, name="Area North")
+
+    unique_id = set_sensor_uid(AVE_FAMILY_ANTITHEFT_AREA, 3)
+    created = server.binary_sensors[unique_id]
+    assert created.name == "Area North"
+
+
+def test_update_binary_sensor_skips_when_family_disabled(hass: HomeAssistant) -> None:
+    """Family-specific fetch flags should suppress entity creation."""
+    server = _new_server(hass, fetch_sensors=False, fetch_sensor_areas=False)
+
+    update_binary_sensor(server, AVE_FAMILY_MOTION_SENSOR, 1, 1)
+    update_binary_sensor(server, AVE_FAMILY_ANTITHEFT_AREA, 2, 1)
+
+    assert server.binary_sensors == {}
+    server.async_add_bs_entities.assert_not_called()
+
+
+def test_update_binary_sensor_skips_unsupported_family(hass: HomeAssistant) -> None:
+    """Unsupported binary sensor families should be ignored."""
+    server = _new_server(hass)
+
+    update_binary_sensor(server, 9999, 1, 1)
+
+    assert server.binary_sensors == {}
+
+
+def test_update_binary_sensor_existing_respects_manual_rename(
+    hass: HomeAssistant,
+) -> None:
+    """Existing sensor updates should avoid overriding user-defined names."""
+    server = _new_server(hass)
+    unique_id = set_sensor_uid(AVE_FAMILY_ANTITHEFT_AREA, 4)
+    sensor = MotionBinarySensor(
+        unique_id,
+        AVE_FAMILY_ANTITHEFT_AREA,
+        4,
+        0,
+        hass,
+        server,
+        name="Area",
+    )
+    sensor.update_state = Mock()
+    sensor.set_name = Mock()
+    sensor.set_ave_name = Mock()
+    server.binary_sensors[unique_id] = sensor
+
+    with patch(
+        "custom_components.ave_dominaplus.binary_sensor.check_name_changed",
+        return_value=True,
+    ):
+        update_binary_sensor(
+            server,
+            AVE_FAMILY_ANTITHEFT_AREA,
+            4,
+            1,
+            name="AVE Area",
+        )
+
+    sensor.update_state.assert_called_once_with(1)
+    sensor.set_ave_name.assert_called_once_with("AVE Area")
+    sensor.set_name.assert_not_called()
+
+
+def test_motion_sensor_update_state_tracks_timestamps(hass: HomeAssistant) -> None:
+    """Motion sensor state changes should set revealed/cleared timestamps."""
+    server = _new_server(hass)
+    sensor = MotionBinarySensor(
+        "uid",
+        AVE_FAMILY_MOTION_SENSOR,
+        5,
+        0,
+        hass,
+        server,
+    )
+    sensor.async_write_ha_state = Mock()
+
+    with patch(
+        "custom_components.ave_dominaplus.binary_sensor.utcnow",
+        side_effect=[
+            SimpleNamespace(isoformat=lambda: "2026-04-14T10:00:00+00:00"),
+            SimpleNamespace(isoformat=lambda: "2026-04-14T10:01:00+00:00"),
+        ],
+    ):
+        sensor.update_state(1)
+        sensor.update_state(0)
+
+    assert sensor.extra_state_attributes["last_revealed"] == "2026-04-14T10:00:00+00:00"
+    assert sensor.extra_state_attributes["last_cleared"] == "2026-04-14T10:01:00+00:00"
+    assert sensor.async_write_ha_state.call_count == 2
+
+
+async def test_hub_status_sensor_reports_connectivity_and_lifecycle(
+    hass: HomeAssistant,
+) -> None:
+    """Hub status sensor should mirror connection state and register lifecycle hooks."""
+    server = _new_server(hass)
+    entry = SimpleNamespace(entry_id="entry-1")
+    status = AveHubStatusBinarySensor(server, entry)
+
+    server._set_connected(True)
+    assert status.is_on is True
+    assert status.extra_state_attributes["AVE webserver MAC"] == server.mac_address
+
+    with (
+        patch(
+            "homeassistant.helpers.entity.Entity.async_added_to_hass",
+            new=AsyncMock(),
+        ),
+        patch(
+            "homeassistant.helpers.entity.Entity.async_will_remove_from_hass",
+            new=AsyncMock(),
+        ),
+    ):
+        await status.async_added_to_hass()
+        await status.async_will_remove_from_hass()
+
+    server.register_availability_entity.assert_called_once_with(status)
+    server.unregister_availability_entity.assert_called_once_with(status)

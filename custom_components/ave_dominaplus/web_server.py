@@ -85,6 +85,8 @@ class AveWebServer:
         except KeyError:
             _LOGGER.exception("Missing key in settings data")
         self.mac_address = ""
+        self.config_entry_id: str | None = None
+        self.config_entry_unique_id: str | None = None
         self.systeminfo: dict[str, str] = {}
         self.hass = hass
         self._ws_session: aiohttp.ClientSession | None = None
