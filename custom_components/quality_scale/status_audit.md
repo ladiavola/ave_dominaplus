@@ -31,9 +31,9 @@ Evidence: reusable logic extracted in uid_v2.py, ave_map.py, ave_thermostat.py, 
 Action: keep consolidating duplicated parsing/name helpers during refactors.
 
 5. config-flow-test-coverage
-Status: Missing
-Evidence: no tests directory or config flow tests.
-Action: add pytest tests for user flow, zeroconf flow, duplicate prevention, reconfigure, error paths.
+Status: Covered
+Evidence: tests/test_config_flow.py now covers user flow, zeroconf flow, duplicate prevention, legacy adoption paths, reconfigure flow, and error/recovery branches with 100% coverage for custom_components/ave_dominaplus/config_flow.py.
+Action: keep tests updated whenever new config/reconfigure flow branches are introduced.
 
 6. config-flow
 Status: Covered
