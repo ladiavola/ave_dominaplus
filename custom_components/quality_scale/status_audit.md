@@ -77,8 +77,8 @@ Action: keep removal notes aligned with future migration behavior.
 
 14. entity-event-setup
 Status: Missing
-Evidence: callbacks are wired in platform async_setup_entry and webserver object; lifecycle unsubscribe patterns are not implemented at entity level.
-Action: move subscriptions/listeners to async_added_to_hass and register cleanup with async_on_remove/async_will_remove_from_hass.
+Evidence: callbacks are still wired at platform/webserver level, but lights and covers now include lifecycle runtime-map cleanup (pop on async_will_remove_from_hass) and guarded per-entity update handlers to avoid stale-reference exceptions after teardown.
+Action: apply the same lightweight lifecycle cleanup strategy to remaining platforms (switches/binary sensors/climate/offset) or replace callback storage with explicit lifecycle-bound subscriptions integration-wide.
 
 15. entity-unique-id
 Status: Covered

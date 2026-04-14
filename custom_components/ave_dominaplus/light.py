@@ -143,18 +143,19 @@ def update_light(
     already_exists = unique_id in server.lights if unique_id is not None else False
 
     if already_exists and unique_id is not None:
+        allow_name_update = (
+            name is not None
+            and server.settings.get_entity_names
+            and not check_name_changed(server.hass, unique_id)
+        )
+
         light: DimmerLight = server.lights[unique_id]
-
-        if device_status >= 0:
-            light.update_state(device_status)
-
-        if name is not None and server.settings.get_entity_names:
-            light.set_ave_name(name)
-            if not check_name_changed(server.hass, unique_id):
-                light.set_name(name)
-
-        if address_dec is not None:
-            light.set_address_dec(address_dec)
+        light.handle_webserver_update(
+            device_status=device_status,
+            name=name,
+            address_dec=address_dec,
+            allow_name_update=allow_name_update,
+        )
     else:
         if address_dec is None:
             _LOGGER.error(
@@ -263,8 +264,29 @@ class DimmerLight(LightEntity):
 
     async def async_will_remove_from_hass(self) -> None:
         """Handle entity removal from Home Assistant."""
+        self._webserver.lights.pop(self._unique_id, None)
         self._webserver.unregister_availability_entity(self)
         await super().async_will_remove_from_hass()
+
+    def handle_webserver_update(
+        self,
+        *,
+        device_status: int,
+        name: str | None = None,
+        address_dec: int | None = None,
+        allow_name_update: bool = False,
+    ) -> None:
+        """Apply a websocket light update routed through lifecycle subscriptions."""
+        if device_status >= 0:
+            self.update_state(device_status)
+
+        if name is not None and self._webserver.settings.get_entity_names:
+            self.set_ave_name(name)
+            if allow_name_update:
+                self.set_name(name)
+
+        if address_dec is not None:
+            self.set_address_dec(address_dec)
 
     async def async_toggle(self, **kwargs: Any) -> None:
         """Toggle the light."""
