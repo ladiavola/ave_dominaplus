@@ -98,15 +98,20 @@ def _clean_ave_device_name(ave_name: str | None) -> str | None:
     return clean_name or None
 
 
+def _thermostat_device_name(ave_device_id: int, ave_name: str | None) -> str:
+    """Build thermostat device name from AVE name or fallback device id."""
+    clean_name = _clean_ave_device_name(ave_name)
+    if not clean_name:
+        return f"Thermostat {ave_device_id}"
+    if clean_name.lower().startswith("thermostat "):
+        return clean_name
+    return f"Thermostat {clean_name}"
+
+
 def _endpoint_name(family: int, ave_device_id: int, ave_name: str | None) -> str:
     """Return a stable endpoint device name."""
     if family == AVE_FAMILY_THERMOSTAT:
-        clean_name = _clean_ave_device_name(ave_name)
-        if clean_name:
-            if clean_name.lower().startswith("thermostat "):
-                return clean_name
-            return f"Thermostat {clean_name}"
-        return f"Thermostat {ave_device_id}"
+        return _thermostat_device_name(ave_device_id, ave_name)
     group = _FAMILY_TO_GROUP.get(family)
     if group:
         return _GROUP_NAMES[group]

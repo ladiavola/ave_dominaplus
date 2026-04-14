@@ -127,6 +127,20 @@ def test_endpoint_thermostat_name_is_cleaned_for_offset_suffix() -> None:
     assert info.get("name") == "Thermostat Living Room"
 
 
+def test_endpoint_thermostat_name_keeps_existing_prefix() -> None:
+    """Thermostat names that already include prefix should not be doubled."""
+    server = _server_stub(config_entry_id="entry-123")
+
+    info = build_endpoint_device_info(
+        cast(AveWebServer, server),
+        family=AVE_FAMILY_THERMOSTAT,
+        ave_device_id=10,
+        ave_name="Thermostat Studio",
+    )
+
+    assert info.get("name") == "Thermostat Studio"
+
+
 def test_endpoint_motion_sensors_are_grouped() -> None:
     """All antitheft motion sensors should map to one grouped child device."""
     server = _server_stub(config_entry_id="entry-123")
