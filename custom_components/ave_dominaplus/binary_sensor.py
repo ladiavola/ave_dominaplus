@@ -15,7 +15,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util.dt import utcnow
 
-from .const import AVE_FAMILY_ANTITHEFT_AREA, AVE_FAMILY_MOTION_SENSOR, BRAND_PREFIX
+from .const import AVE_FAMILY_ANTITHEFT_AREA, AVE_FAMILY_MOTION_SENSOR
 from .device_info import build_endpoint_device_info, build_hub_device_info
 from .web_server import AveWebServer
 
@@ -198,12 +198,13 @@ class AveHubStatusBinarySensor(BinarySensorEntity):
 
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_has_entity_name = True
     _attr_should_poll = False
 
     def __init__(self, ws: AveWebServer, entry) -> None:
         """Initialize the binary sensor."""
         self._ws = ws
-        self._attr_name = "AVE Hub Status"
+        self._attr_name = "Status"
         self._attr_unique_id = f"ave_hub_status_{entry.entry_id}"
         self._attr_device_info = build_hub_device_info(ws)
 
@@ -233,6 +234,7 @@ class AveHubStatusBinarySensor(BinarySensorEntity):
 class MotionBinarySensor(BinarySensorEntity):
     """Representation of a motion detection binary sensor."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
 
     def __init__(
@@ -348,9 +350,9 @@ class MotionBinarySensor(BinarySensorEntity):
 
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
-        suffix = "sensor type " + str(self.family)
+        suffix = f"Sensor {self.family}"
         if self.family == AVE_FAMILY_ANTITHEFT_AREA:
-            suffix = "antitheft area"
+            suffix = "Antitheft Area"
         elif self.family == AVE_FAMILY_MOTION_SENSOR:
-            suffix = "antitheft sensor"
-        return f"{BRAND_PREFIX} {suffix} {self.ave_device_id}"
+            suffix = "Antitheft Sensor"
+        return f"{suffix} {self.ave_device_id}"

@@ -14,7 +14,7 @@
 - [x] `docs-removal-instructions` - The documentation provides removal instructions
 - [ ] `entity-event-setup` - Entity events are subscribed in the correct lifecycle methods
 - [x] `entity-unique-id` - Entities have a unique ID
-- [ ] `has-entity-name` - Entities use has_entity_name = True
+- [x] `has-entity-name` - Entities use has_entity_name = True
 - [x] `runtime-data` - Use ConfigEntry.runtime_data to store runtime data
 - [x] `test-before-configure` - Test a connection in the config flow
 - [x] `test-before-setup` - Check during integration initialization if we are able to set it up correctly

@@ -10,7 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import AVE_FAMILY_DIMMER, AVE_FAMILY_ONOFFLIGHTS, BRAND_PREFIX
+from .const import AVE_FAMILY_DIMMER, AVE_FAMILY_ONOFFLIGHTS
 from .device_info import build_endpoint_device_info
 from .uid_v2 import build_uid, find_unique_id, parse_uid
 from .web_server import AveWebServer
@@ -207,6 +207,7 @@ def check_name_changed(hass: HomeAssistant, unique_id: str) -> bool:
 class DimmerLight(LightEntity):
     """Representation of an AVE dimmer light."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
     _attr_supported_color_modes = {ColorMode.BRIGHTNESS}
     _attr_color_mode = ColorMode.BRIGHTNESS
@@ -387,4 +388,6 @@ class DimmerLight(LightEntity):
 
     def build_name(self) -> str:
         """Build default entity name."""
-        return f"{BRAND_PREFIX} dimmer {self.ave_device_id}"
+        if self.family == AVE_FAMILY_ONOFFLIGHTS:
+            return f"Light {self.ave_device_id}"
+        return f"Dimmer {self.ave_device_id}"

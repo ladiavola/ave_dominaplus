@@ -18,7 +18,6 @@ from .const import (
     AVE_FAMILY_SHUTTER_HUNG,
     AVE_FAMILY_SHUTTER_ROLLING,
     AVE_FAMILY_SHUTTER_SLIDING,
-    BRAND_PREFIX,
 )
 from .device_info import build_endpoint_device_info
 from .uid_v2 import build_uid, find_unique_id, parse_uid
@@ -223,6 +222,7 @@ def check_name_changed(hass: HomeAssistant, unique_id: str) -> bool:
 class AveCover(CoverEntity):
     """Representation of an AVE cover."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
     _attr_supported_features = (
         CoverEntityFeature.OPEN | CoverEntityFeature.CLOSE | CoverEntityFeature.STOP
@@ -397,11 +397,11 @@ class AveCover(CoverEntity):
     def build_name(self) -> str:
         """Build default entity name."""
         if self.family == AVE_FAMILY_SHUTTER_ROLLING:
-            suffix = "shutter"
+            suffix = "Shutter"
         elif self.family == AVE_FAMILY_SHUTTER_SLIDING:
-            suffix = "blind"
+            suffix = "Blind"
         elif self.family == AVE_FAMILY_SHUTTER_HUNG:
-            suffix = "window"
+            suffix = "Window"
         else:
-            suffix = "cover"
-        return f"{BRAND_PREFIX} {suffix} {self.ave_device_id}"
+            suffix = "Cover"
+        return f"{suffix} {self.ave_device_id}"

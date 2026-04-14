@@ -23,7 +23,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .ave_map import AveMapCommand
 from .ave_thermostat import AveThermostatProperties
-from .const import AVE_FAMILY_THERMOSTAT, BRAND_PREFIX
+from .const import AVE_FAMILY_THERMOSTAT
 from .device_info import build_endpoint_device_info
 from .web_server import AveWebServer
 
@@ -338,6 +338,7 @@ def check_name_changed(hass: HomeAssistant, unique_id: str) -> bool:
 class AveThermostat(ClimateEntity):
     """Representation of a thermostat controller."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
 
     _attr_supported_features = (
@@ -709,6 +710,4 @@ class AveThermostat(ClimateEntity):
 
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
-        suffix = "thermostat"
-        mac = self._webserver.mac_address if self._webserver else "unknown"
-        return f"{BRAND_PREFIX} {mac} {suffix} {self.ave_properties.device_id}"
+        return f"Thermostat {self.ave_properties.device_id}"

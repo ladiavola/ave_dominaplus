@@ -86,9 +86,9 @@ Evidence: all entities expose unique_id and migration-aware uid_v2 helper exists
 Action: complete migration for legacy IDs where needed.
 
 16. has-entity-name
-Status: Missing
-Evidence: entities define custom name fields but do not set _attr_has_entity_name = True consistently.
-Action: set has_entity_name True for all entities, use None for main entity names where appropriate, and pair with proper device_info.
+Status: Covered
+Evidence: entity platforms now consistently set _attr_has_entity_name = True and use device_info-backed devices with concise generated fallback entity labels.
+Action: preserve current name-update policy: apply AVE name updates only when users have not customized names in Home Assistant.
 
 17. runtime-data
 Status: Covered
