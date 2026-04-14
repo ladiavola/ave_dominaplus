@@ -3,7 +3,7 @@
 - [x] `appropriate-polling` - If it's a polling integration, set an appropriate polling interval (N/A: integration is push/event-driven and does not poll)
 - [x] `brands` - Has branding assets available for the integration
 - [x] `common-modules` - Place common patterns in common modules
-- [ ] `config-flow-test-coverage` - Full test coverage for the config flow
+- [x] `config-flow-test-coverage` - Full test coverage for the config flow
 - [x] `config-flow` - Integration needs to be able to be set up via the UI
     - [x] Uses `data_description` to give context to fields
     - [x] Uses `ConfigEntry.data` and `ConfigEntry.options` correctly
