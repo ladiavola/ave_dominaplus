@@ -38,6 +38,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up AVE ws from a config entry."""
     webserver = AveWebServer(entry.data, hass)
+    webserver.config_entry_id = entry.entry_id
+    webserver.config_entry_unique_id = entry.unique_id
     if not await webserver.authenticate():
         raise ConfigEntryNotReady("Cannot connect to the AVE web server")
 

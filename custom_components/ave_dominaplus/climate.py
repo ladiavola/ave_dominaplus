@@ -24,6 +24,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .ave_map import AveMapCommand
 from .ave_thermostat import AveThermostatProperties
 from .const import AVE_FAMILY_THERMOSTAT, BRAND_PREFIX
+from .device_info import build_hub_device_info
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -374,6 +375,7 @@ class AveThermostat(ClimateEntity):
         self.family = family
         self._webserver = webserver
         self.hass = self._webserver.hass
+        self._attr_device_info = build_hub_device_info(webserver)
         self.ave_properties: AveThermostatProperties = ave_properties
         self.ave_name = ""
         if name is not None:

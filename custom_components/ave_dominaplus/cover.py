@@ -20,6 +20,7 @@ from .const import (
     AVE_FAMILY_SHUTTER_SLIDING,
     BRAND_PREFIX,
 )
+from .device_info import build_hub_device_info
 from .uid_v2 import build_uid, find_unique_id, parse_uid
 from .web_server import AveWebServer
 
@@ -247,6 +248,7 @@ class AveCover(CoverEntity):
         self._ave_name = ave_name
         self._address_dec = address_dec
         self._pending_state_write = False
+        self._attr_device_info = build_hub_device_info(webserver)
 
         self._attr_device_class = CoverDeviceClass.SHUTTER
 

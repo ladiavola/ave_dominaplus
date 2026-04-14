@@ -165,9 +165,9 @@ Action: create tests for setup, unload, websocket parsing, entities, diagnostics
 ## Gold
 
 1. devices
-Status: Missing
-Evidence: entities do not provide device_info; entities are not grouped under device registry devices.
-Action: add device_info for hub and end-devices (identifiers/connections/manufacturer/model/sw).
+Status: Covered
+Evidence: entities now provide device_info and are grouped under a stable AVE Hub device in the device registry using DOMAIN-scoped identifiers and hub MAC/config-entry fallback keys.
+Action: optional next step: split child endpoints into per-device registry devices (with via_device to hub) once naming/migration plan is defined.
 
 2. diagnostics
 Status: Covered

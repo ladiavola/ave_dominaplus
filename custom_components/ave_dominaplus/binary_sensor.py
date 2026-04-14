@@ -16,6 +16,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util.dt import utcnow
 
 from .const import AVE_FAMILY_ANTITHEFT_AREA, AVE_FAMILY_MOTION_SENSOR, BRAND_PREFIX
+from .device_info import build_hub_device_info
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -204,6 +205,7 @@ class AveHubStatusBinarySensor(BinarySensorEntity):
         self._ws = ws
         self._attr_name = "AVE Hub Status"
         self._attr_unique_id = f"ave_hub_status_{entry.entry_id}"
+        self._attr_device_info = build_hub_device_info(ws)
 
     async def async_added_to_hass(self) -> None:
         """Handle entity added to Home Assistant."""
@@ -254,6 +256,7 @@ class MotionBinarySensor(BinarySensorEntity):
         self._ave_name: str | None = ave_name
         self._webserver = webserver
         self.hass = hass
+        self._attr_device_info = build_hub_device_info(webserver)
 
         if name is None:
             self._name = self.build_name()
