@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from homeassistant.const import Platform
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN
@@ -38,15 +39,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up AVE ws from a config entry."""
     webserver = AveWebServer(entry.data, hass)
     if not await webserver.authenticate():
-        _LOGGER.error("AVE dominaplus: Cannot connect to the web server")
+        raise ConfigEntryNotReady("Cannot connect to the AVE web server")
 
     entry.runtime_data = webserver
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    hass.loop.create_task(webserver.start())
+    try:
+        await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    except Exception:
+        await webserver.disconnect()
+        raise
+
+    hass.async_create_task(webserver.start())
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    # Disconnect the WebSocket server
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unload_ok:
+        webserver: AveWebServer = entry.runtime_data
+        await webserver.disconnect()
+
+    return unload_ok

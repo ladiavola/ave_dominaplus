@@ -389,6 +389,16 @@ class AveThermostat(ClimateEntity):
         self._selected_schedule = None
         self.update_all_properties(ave_properties, first_update=True)
 
+    async def async_added_to_hass(self) -> None:
+        """Handle entity added to Home Assistant."""
+        await super().async_added_to_hass()
+        self._webserver.register_availability_entity(self)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Handle entity removal from Home Assistant."""
+        self._webserver.unregister_availability_entity(self)
+        await super().async_will_remove_from_hass()
+
     def update_from_wts(self, parameters: list[str], records: list[list[str]]):
         """Update the thermostat properties from WTS data."""
         ave_properties = AveThermostatProperties.from_wts(parameters, records)
@@ -609,6 +619,11 @@ class AveThermostat(ClimateEntity):
     def name(self) -> str:
         """Return the name of the sensor."""
         return self._name
+
+    @property
+    def available(self) -> bool:
+        """Return if the backing webserver connection is available."""
+        return self._webserver.connected
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

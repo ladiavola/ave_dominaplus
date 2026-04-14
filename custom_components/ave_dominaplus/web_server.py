@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -86,8 +87,12 @@ class AveWebServer:
         self.mac_address = ""
         self.systeminfo: dict[str, str] = {}
         self.hass = hass
+        self._ws_session: aiohttp.ClientSession | None = None
         self.ws_conn: Any = None
         self._connected = False
+        self._has_connected_once = False
+        self._logged_unavailable = False
+        self._availability_entities: set[Any] = set()
         self.device_list: list[Any] = []
         self.wtstask: asyncio.Task
         self.started = False
@@ -178,20 +183,129 @@ class AveWebServer:
         """Return if the web server is connected."""
         return self._connected
 
+    @property
+    def connected(self) -> bool:
+        """Return if the web server is connected (sync property)."""
+        return self._connected
+
+    def _iter_connection_entities(self):
+        """Iterate all runtime entities that should refresh availability."""
+        seen: set[int] = set()
+
+        for entity in self._availability_entities:
+            entity_id = id(entity)
+            if entity_id in seen:
+                continue
+            seen.add(entity_id)
+            yield entity
+
+        for collection in (
+            self.binary_sensors,
+            self.switches,
+            self.lights,
+            self.covers,
+            self.thermostats,
+            self.numbers,
+        ):
+            for entity in collection.values():
+                entity_id = id(entity)
+                if entity_id in seen:
+                    continue
+                seen.add(entity_id)
+                yield entity
+
+    def register_availability_entity(self, entity: Any) -> None:
+        """Register an entity for connectivity-driven availability updates."""
+        self._availability_entities.add(entity)
+
+    def unregister_availability_entity(self, entity: Any) -> None:
+        """Unregister an entity for connectivity-driven availability updates."""
+        self._availability_entities.discard(entity)
+
+    def _notify_connection_state_changed(self) -> None:
+        """Force entity state refresh when connectivity changes."""
+        for entity in self._iter_connection_entities():
+            if getattr(entity, "hass", None) is None:
+                continue
+            if getattr(entity, "entity_id", None) is None:
+                continue
+            try:
+                entity.async_write_ha_state()
+            except RuntimeError:
+                _LOGGER.debug(
+                    "Skipping availability refresh for entity %s due to runtime state",
+                    entity,
+                    exc_info=True,
+                )
+
+    def _set_connected(self, connected: bool, *, log_transition: bool = True) -> None:
+        """Update connection flag and log only on edge transitions."""
+        if self._connected == connected:
+            return
+
+        self._connected = connected
+
+        if connected:
+            self._has_connected_once = True
+            if log_transition and self._logged_unavailable:
+                _LOGGER.info(
+                    "Connection to AVE web server restored",
+                    extra={"host": self.settings.host},
+                )
+                self._logged_unavailable = False
+        elif (
+            log_transition and self._has_connected_once and not self._logged_unavailable
+        ):
+            _LOGGER.warning(
+                "Connection to AVE web server unavailable",
+                extra={"host": self.settings.host},
+            )
+            self._logged_unavailable = True
+
+        self._notify_connection_state_changed()
+
     async def authenticate(self) -> bool:
         """Authenticate with the WebSocket server."""
         try:
-            session = aiohttp.ClientSession()
-            self.ws_conn = await session.ws_connect(
+            if self._ws_session is None or self._ws_session.closed:
+                self._ws_session = aiohttp.ClientSession()
+
+            self.ws_conn = await self._ws_session.ws_connect(
                 f"ws://{self.settings.host}:14001",
                 protocols=["binary"],
+                heartbeat=15,
             )
-            self._connected = True
+            self._set_connected(True)
             self.mac_address = await self.tryget_mac_address()
             self.systeminfo = await self.tryget_systeminfo()
             _LOGGER.debug("Connected to WebSocket server at %s", self.settings.host)
+        except aiohttp.ClientError as err:
+            self._set_connected(False)
+            if self.ws_conn:
+                with suppress(Exception):
+                    await self.ws_conn.close()
+                self.ws_conn = None
+            if self._ws_session and not self._ws_session.closed:
+                with suppress(Exception):
+                    await self._ws_session.close()
+            self._ws_session = None
+            _LOGGER.debug(
+                "Failed to connect to WebSocket server at %s: %s",
+                self.settings.host,
+                err,
+            )
+            return False
         except Exception:
-            _LOGGER.exception("Failed to connect to WebSocket server")
+            self._set_connected(False)
+            if self.ws_conn:
+                with suppress(Exception):
+                    await self.ws_conn.close()
+                self.ws_conn = None
+            if self._ws_session and not self._ws_session.closed:
+                with suppress(Exception):
+                    await self._ws_session.close()
+            self._ws_session = None
+            _LOGGER.exception("Unexpected error while connecting to WebSocket server")
             return False
         return True
 
@@ -207,8 +321,11 @@ class AveWebServer:
         if self.ws_conn:
             await self.ws_conn.close()
             self.ws_conn = None
-            self._connected = False
             _LOGGER.info("WebSocket disconnected!", extra={"host": self.settings.host})
+        if self._ws_session and not self._ws_session.closed:
+            await self._ws_session.close()
+        self._ws_session = None
+        self._set_connected(False, log_transition=False)
 
     async def start(self) -> None:
         """Start the WebSocket connection and listen for messages."""
@@ -224,7 +341,6 @@ class AveWebServer:
                 if not self._connected or self.ws_conn is None or self.ws_conn.closed:
                     _LOGGER.debug("Attempting to connect to WebSocket server")
                     if not await self.authenticate():
-                        _LOGGER.error("Failed to authenticate with WebSocket server")
                         await asyncio.sleep(5)
                         continue
 
@@ -237,14 +353,14 @@ class AveWebServer:
                     if msg.type == aiohttp.WSMsgType.BINARY:
                         await self.on_message(msg.data)
                     elif msg.type == aiohttp.WSMsgType.ERROR:
-                        _LOGGER.error("WebSocket error", extra={"error": msg.data})
+                        _LOGGER.debug("WebSocket error", extra={"error": msg.data})
                         break
 
-                self._connected = False
+                self._set_connected(False)
 
             except Exception:
                 _LOGGER.exception("WebSocket connection error")
-                self._connected = False
+                self._set_connected(False)
                 await asyncio.sleep(5)  # Retry after a delay
 
         _LOGGER.debug("WebSocket connection stopped")
@@ -408,12 +524,25 @@ class AveWebServer:
         message += chr(0x03)
         crc = await self.build_crc(message)
         full_message = message + crc + chr(0x04)
-        if self.ws_conn and not self.ws_conn.closed:
+        if not self.ws_conn or self.ws_conn.closed:
+            _LOGGER.debug(
+                "Skipping command %s because WebSocket is not connected", command
+            )
+            return
+
+        try:
             await self.ws_conn.send_str(full_message)
-            escaped_message = full_message.encode("unicode_escape").decode("ascii")
-            _LOGGER.debug("Sent command: %s", escaped_message)
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        except Exception:
+            self._set_connected(False)
+            _LOGGER.debug(
+                "Failed to send command %s because WebSocket is not connected",
+                command,
+                exc_info=True,
+            )
+            return
+
+        escaped_message = full_message.encode("unicode_escape").decode("ascii")
+        _LOGGER.debug("Sent command: %s", escaped_message)
 
     async def manage_incoming_messages_messages(
         self, command: str, parameters: list[Any], records: list[list[Any]]

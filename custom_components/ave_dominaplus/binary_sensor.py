@@ -89,6 +89,7 @@ async def adopt_existing_sensors(server: AveWebServer, entry: ConfigEntry) -> No
                     is_motion_detected=None,
                     name=name,
                     hass=server.hass,
+                    webserver=server,
                 )
 
                 server.binary_sensors[entity.unique_id] = sensor
@@ -163,6 +164,7 @@ def update_binary_sensor(
             family=family,
             ave_device_id=ave_device_id,
             hass=server.hass,
+            webserver=server,
             name=entity_name,
             ave_name=entity_ave_name,
         )
@@ -202,6 +204,16 @@ class AveHubStatusBinarySensor(BinarySensorEntity):
         self._attr_unique_id = f"ave_hub_status_{entry.entry_id}"
         self._attr_is_on = None
 
+    async def async_added_to_hass(self) -> None:
+        """Handle entity added to Home Assistant."""
+        await super().async_added_to_hass()
+        self._ws.register_availability_entity(self)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Handle entity removal from Home Assistant."""
+        self._ws.unregister_availability_entity(self)
+        await super().async_will_remove_from_hass()
+
     @property
     def is_on(self) -> bool | None:
         """Return the status of the hub."""
@@ -231,6 +243,7 @@ class MotionBinarySensor(BinarySensorEntity):
         ave_device_id: int,
         is_motion_detected: int | None,
         hass: HomeAssistant,
+        webserver: AveWebServer,
         name=None,
         ave_name=None,
     ) -> None:
@@ -242,6 +255,7 @@ class MotionBinarySensor(BinarySensorEntity):
         self._last_revealed: str | None = None
         self._last_cleared: str | None = None
         self._ave_name: str | None = ave_name
+        self._webserver = webserver
         self.hass = hass
 
         if name is None:
@@ -249,6 +263,16 @@ class MotionBinarySensor(BinarySensorEntity):
         else:
             self._name = name
         self._attr_family = family
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity added to Home Assistant."""
+        await super().async_added_to_hass()
+        self._webserver.register_availability_entity(self)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Handle entity removal from Home Assistant."""
+        self._webserver.unregister_availability_entity(self)
+        await super().async_will_remove_from_hass()
 
     @property
     def unique_id(self) -> str:
@@ -259,6 +283,11 @@ class MotionBinarySensor(BinarySensorEntity):
     def name(self) -> str:
         """Return the name of the sensor."""
         return self._name
+
+    @property
+    def available(self) -> bool:
+        """Return if the backing webserver connection is available."""
+        return self._webserver.connected
 
     @property
     def is_on(self) -> bool | None:

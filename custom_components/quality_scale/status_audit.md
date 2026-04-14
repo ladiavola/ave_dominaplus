@@ -101,9 +101,9 @@ Evidence: config flow validate_input performs live connectivity/identity checks 
 Action: add test coverage for all failure branches.
 
 19. test-before-setup
-Status: Missing
-Evidence: async_setup_entry logs authenticate failure but still forwards platforms and returns True.
-Action: raise ConfigEntryNotReady/ConfigEntryAuthFailed/ConfigEntryError appropriately before forwarding setups.
+Status: Covered
+Evidence: async_setup_entry now raises ConfigEntryNotReady when initial connectivity fails before platform forwarding.
+Action: if auth is introduced in the future, map auth failures to ConfigEntryAuthFailed.
 
 20. unique-config-entry
 Status: Covered
@@ -118,9 +118,9 @@ Evidence: no service actions implemented.
 Action: checklist can be treated as satisfied-by-scope; if actions are added, raise ServiceValidationError/HomeAssistantError for invalid/failed operations.
 
 2. config-entry-unloading
-Status: Missing
-Evidence: async_unload_entry unloads platforms only; websocket disconnect/task cleanup is not executed there.
-Action: call runtime_data.disconnect() and ensure tasks/listeners are cleaned up; use entry.async_on_unload where possible.
+Status: Covered
+Evidence: async_unload_entry unloads platforms and explicitly disconnects runtime websocket resources.
+Action: keep unload path idempotent as runtime resources evolve.
 
 3. docs-configuration-parameters
 Status: Covered
@@ -133,9 +133,9 @@ Evidence: README describes installation prerequisites and setup inputs.
 Action: add explicit list of required ports/network reachability assumptions.
 
 5. entity-unavailable
-Status: Missing
-Evidence: entities generally keep previous state and do not reliably set available=False when backend connection is lost.
-Action: propagate connection availability to entities and expose unavailable state consistently.
+Status: Covered
+Evidence: entity availability is now tied to backend websocket connectivity across platforms and state refresh is triggered on connection state transitions.
+Action: keep availability semantics aligned with connectivity source of truth.
 
 6. integration-owner
 Status: Covered
@@ -143,9 +143,9 @@ Evidence: manifest.json includes codeowners entry.
 Action: keep owner list current.
 
 7. log-when-unavailable
-Status: Missing
-Evidence: reconnect loop can repeatedly log connection errors; no one-time unavailable/available transition logging guard.
-Action: implement edge-triggered logging for down/up transitions only.
+Status: Covered
+Evidence: connection transition logging is edge-triggered in the websocket manager (single unavailable warning and single restored info per outage window).
+Action: keep transition logs concise and avoid per-command noise during outages.
 
 8. parallel-updates
 Status: Covered

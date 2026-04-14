@@ -262,9 +262,15 @@ class AveCover(CoverEntity):
     async def async_added_to_hass(self) -> None:
         """Handle entity added to Home Assistant."""
         await super().async_added_to_hass()
+        self._webserver.register_availability_entity(self)
         if self._pending_state_write:
             self._pending_state_write = False
             self.async_write_ha_state()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Handle entity removal from Home Assistant."""
+        self._webserver.unregister_availability_entity(self)
+        await super().async_will_remove_from_hass()
 
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
@@ -299,6 +305,11 @@ class AveCover(CoverEntity):
     def name(self) -> str:
         """Return the name of the entity."""
         return self._name
+
+    @property
+    def available(self) -> bool:
+        """Return if the backing webserver connection is available."""
+        return self._webserver.connected
 
     @property
     def is_closed(self) -> bool | None:
