@@ -34,7 +34,7 @@ Files:
 Tests to add first:
 
 - `manage_upd` routes updates to the correct callback by family and settings.
-- On/off lights are routed to switch or light based on `onOffLightsAsSwitch`.
+- On/off lights are routed to switch or light based on `on_off_lights_as_switch`.
 - Cover updates route only for supported cover families.
 - Thermostat update commands route correctly (`WT`, `TM`, `TW`, `TP`, `TT`, `TR`, `TL`, `TLO`, `TO`, `TS`).
 - Unknown or unsupported updates do not raise exceptions.

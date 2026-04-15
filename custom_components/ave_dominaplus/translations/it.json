@@ -10,9 +10,10 @@
           "fetch_sensor_areas": "Importa le aree antifurto",
           "fetch_sensors": "Importa i sensori antifurto individuali",
           "fetch_lights": "Importa le luci",
+          "lights_options": "Opzioni luci",
           "fetch_covers": "Importa le tapparelle",
           "fetch_scenarios": "Importa gli scenari",
-          "onOffLightsAsSwitch": "Luci On/Off come interruttori",
+          "on_off_lights_as_switch": "Luci On/Off come interruttori",
           "fetch_thermostats": "Importa i termostati"
         },
         "data_description": {
@@ -21,7 +22,7 @@
           "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità.",
           "fetch_covers": "Aggiunge entità tapparella/copertura (famiglie AVE 3, 16, 19).",
           "fetch_scenarios": "Aggiunge pulsanti di esecuzione scenario e binary sensor di stato in esecuzione (famiglia AVE 6).",
-          "onOffLightsAsSwitch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
+          "on_off_lights_as_switch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
         }
       },
       "reconfigure": {
@@ -33,9 +34,10 @@
           "fetch_sensor_areas": "Importa le aree antifurto",
           "fetch_sensors": "Importa i sensori antifurto individuali",
           "fetch_lights": "Importa le luci",
+          "lights_options": "Opzioni luci",
           "fetch_covers": "Importa le tapparelle",
           "fetch_scenarios": "Importa gli scenari",
-          "onOffLightsAsSwitch": "Luci On/Off come interruttori",
+          "on_off_lights_as_switch": "Luci On/Off come interruttori",
           "fetch_thermostats": "Importa i termostati"
         },
         "data_description": {
@@ -44,7 +46,7 @@
           "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità.",
           "fetch_covers": "Aggiunge entità tapparella/copertura (famiglie AVE 3, 16, 19).",
           "fetch_scenarios": "Aggiunge pulsanti di esecuzione scenario e binary sensor di stato in esecuzione (famiglia AVE 6).",
-          "onOffLightsAsSwitch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
+          "on_off_lights_as_switch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
         }
       },
       "zeroconf_confirm": {
@@ -60,9 +62,10 @@
           "fetch_sensor_areas": "Importa le aree antifurto",
           "fetch_sensors": "Importa i sensori antifurto individuali",
           "fetch_lights": "Importa le luci",
+          "lights_options": "Opzioni luci",
           "fetch_covers": "Importa le tapparelle",
           "fetch_scenarios": "Importa gli scenari",
-          "onOffLightsAsSwitch": "Luci On/Off come interruttori",
+          "on_off_lights_as_switch": "Luci On/Off come interruttori",
           "fetch_thermostats": "Importa i termostati"
         },
         "data_description": {
@@ -71,7 +74,7 @@
           "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità.",
           "fetch_covers": "Aggiunge entità tapparella/copertura (famiglie AVE 3, 16, 19).",
           "fetch_scenarios": "Aggiunge pulsanti di esecuzione scenario e binary sensor di stato in esecuzione (famiglia AVE 6).",
-          "onOffLightsAsSwitch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
+          "on_off_lights_as_switch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
         }
       }
     },

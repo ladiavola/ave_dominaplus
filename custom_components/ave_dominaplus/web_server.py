@@ -58,7 +58,7 @@ class AveWebServerSettings:
         self.fetch_covers = False
         self.fetch_scenarios = True
         self.fetch_thermostats = False
-        self.onOffLightsAsSwitch = True
+        self.on_off_lights_as_switch = True
 
 
 class AveWebServer:
@@ -81,8 +81,8 @@ class AveWebServer:
             self.settings.fetch_covers = settings_data.get("fetch_covers", True)
             self.settings.fetch_scenarios = settings_data.get("fetch_scenarios", True)
             self.settings.fetch_thermostats = settings_data["fetch_thermostats"]
-            self.settings.onOffLightsAsSwitch = settings_data.get(
-                "onOffLightsAsSwitch", True
+            self.settings.on_off_lights_as_switch = settings_data.get(
+                "on_off_lights_as_switch", True
             )
         except KeyError:
             _LOGGER.exception("Missing key in settings data")
@@ -404,6 +404,7 @@ class AveWebServer:
             await self.send_ws_command("GSF", [str(AVE_FAMILY_SHUTTER_HUNG)])
 
         if self.settings.fetch_scenarios:
+            # probably useless. Evaluate getting WSF instead
             await self.send_ws_command("GSF", [str(AVE_FAMILY_SCENARIO)])
 
         # Get status by family type 12 (motion detection areas)
@@ -507,9 +508,7 @@ class AveWebServer:
                 cmd_params, *records_data = str_msg.split(chr(0x1E))
                 command, *parameters = cmd_params.split(chr(0x1D))
                 records = [record.split(chr(0x1D)) for record in records_data]
-                await self.manage_incoming_messages_messages(
-                    command, parameters, records
-                )
+                await self.manage_incoming_messages(command, parameters, records)
         except Exception:
             _LOGGER.exception("Error processing message")
 
@@ -564,7 +563,7 @@ class AveWebServer:
         escaped_message = full_message.encode("unicode_escape").decode("ascii")
         _LOGGER.debug("Sent command: %s", escaped_message)
 
-    async def manage_incoming_messages_messages(
+    async def manage_incoming_messages(
         self, command: str, parameters: list[Any], records: list[list[Any]]
     ) -> None:
         """Manage commands received from the web server."""
@@ -621,45 +620,7 @@ class AveWebServer:
                 int(parameters[2]),
                 int(parameters[3]),
             )
-            if device_id > 200000:
-                # Devices with ID > 2000000 must be scenarios or something...
-                pass
-            elif device_type == AVE_FAMILY_ONOFFLIGHTS and self.settings.fetch_lights:
-                if self.settings.onOffLightsAsSwitch:
-                    self.update_switch(
-                        self, device_type, device_id, device_status, None
-                    )
-                else:
-                    self.update_light(self, device_type, device_id, device_status, None)
-            elif device_type == AVE_FAMILY_DIMMER and self.settings.fetch_lights:
-                self.update_light(self, device_type, device_id, device_status, None)
-            elif (
-                device_type
-                in (
-                    AVE_FAMILY_SHUTTER_ROLLING,
-                    AVE_FAMILY_SHUTTER_SLIDING,
-                    AVE_FAMILY_SHUTTER_HUNG,
-                )
-                and self.settings.fetch_covers
-            ):
-                self.update_cover(self, device_type, device_id, device_status, None)
-            elif device_type == AVE_FAMILY_SCENARIO and self.settings.fetch_scenarios:
-                self.update_binary_sensor(
-                    self, AVE_FAMILY_SCENARIO, device_id, device_status, None
-                )
-            # elif device_type in [12, 13]:
-            #     _LOGGER.debug(
-            #         "Received async Antitheft status update. "
-            #         "Device ID: %s, Device Type: %s, Status: %s",
-            #         device_id,
-            #         device_type,
-            #         device_status,
-            #     )
-            # else:
-            # if device_type in [1, 2, 22, 9, 3, 16, 19, 6]:
-            #     """Limited to [Lighting / Energy / Shutters / Scenarios]
-            #     for security reasons"""
-            #     pass
+            self.manage_upd_ws(device_type, device_id, device_status)
         elif parameters[0] == "X" and parameters[1] == "A":  # ANTITHEFT AREA
             if not self.settings.fetch_sensor_areas:
                 return
@@ -691,9 +652,6 @@ class AveWebServer:
         elif parameters[0] == "X" and parameters[1] == "U":
             # ANTITHEFT UNIT (requires SU2)
             _LOGGER.debug("XU Antitheft Unit - engaged", extra={"id": parameters[2]})
-        elif parameters[0] == "X" and parameters[1] == "A":
-            # ANTITHEFT AREA (not handled yed)
-            pass
         elif parameters[0] == "WT":
             # Serveral updates for thermostats, using Device ID as identifier
             if parameters[1] == "O":
@@ -756,6 +714,43 @@ class AveWebServer:
                 extra={"parameters": parameters},
             )
 
+    def manage_upd_ws(
+        self, device_type: int, device_id: int, device_status: int
+    ) -> None:
+        """Manage UPD WS (status update) commands based on device type."""
+        if device_id > 200000:
+            # Devices with ID > 2000000 must be scenarios or something...
+            return
+        if device_type == AVE_FAMILY_ONOFFLIGHTS and self.settings.fetch_lights:
+            if self.settings.on_off_lights_as_switch:
+                self.update_switch(self, device_type, device_id, device_status, None)
+            else:
+                self.update_light(self, device_type, device_id, device_status, None)
+        elif device_type == AVE_FAMILY_DIMMER and self.settings.fetch_lights:
+            self.update_light(self, device_type, device_id, device_status, None)
+        elif (
+            device_type
+            in (
+                AVE_FAMILY_SHUTTER_ROLLING,
+                AVE_FAMILY_SHUTTER_SLIDING,
+                AVE_FAMILY_SHUTTER_HUNG,
+            )
+            and self.settings.fetch_covers
+        ):
+            self.update_cover(self, device_type, device_id, device_status, None)
+        elif device_type == AVE_FAMILY_SCENARIO and self.settings.fetch_scenarios:
+            self.update_binary_sensor(
+                self, AVE_FAMILY_SCENARIO, device_id, device_status, None
+            )
+        # elif device_type in [12, 13]:
+        #     _LOGGER.debug(
+        #         "Received async Antitheft status update. "
+        #         "Device ID: %s, Device Type: %s, Status: %s",
+        #         device_id,
+        #         device_type,
+        #         device_status,
+        #     )
+
     def manage_gsf(self, parameters: list[Any], records: list[list[Any]]) -> None:
         """Manage GSF Get Status by Family responses."""
         _LOGGER.debug(
@@ -777,7 +772,7 @@ class AveWebServer:
         if parameters[0] == str(AVE_FAMILY_ONOFFLIGHTS):
             for record in records:
                 device_id, device_status = int(record[0]), int(record[1])
-                if self.settings.onOffLightsAsSwitch:
+                if self.settings.on_off_lights_as_switch:
                     self.update_switch(
                         self, AVE_FAMILY_ONOFFLIGHTS, device_id, device_status, None
                     )
@@ -884,7 +879,7 @@ class AveWebServer:
                     # Keypad
                     pass
                 elif device_type == AVE_FAMILY_ONOFFLIGHTS:
-                    if self.settings.onOffLightsAsSwitch:
+                    if self.settings.on_off_lights_as_switch:
                         self.update_switch(
                             self,
                             AVE_FAMILY_ONOFFLIGHTS,

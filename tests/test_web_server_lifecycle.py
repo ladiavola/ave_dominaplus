@@ -206,8 +206,8 @@ async def test_start_processes_binary_messages_then_exits_when_closed(
 async def test_on_message_invalid_utf8_is_swallowed(hass: HomeAssistant) -> None:
     """Decode errors in on_message should not raise out of the handler."""
     server = make_server(hass)
-    server.manage_incoming_messages_messages = AsyncMock()
+    server.manage_incoming_messages = AsyncMock()
 
     await server.on_message(b"\xff")
 
-    server.manage_incoming_messages_messages.assert_not_awaited()
+    server.manage_incoming_messages.assert_not_awaited()

@@ -19,7 +19,7 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
         "fetch_lights": True,
         "fetch_covers": True,
         "fetch_thermostats": True,
-        "onOffLightsAsSwitch": True,
+        "on_off_lights_as_switch": True,
     }
     settings.update(overrides)
     return AveWebServer(settings, hass)
@@ -132,12 +132,12 @@ async def test_send_ws_command_marks_disconnected_on_send_error(
 async def test_on_message_parses_bytes_and_routes_command(hass: HomeAssistant) -> None:
     """on_message should decode bytes payload and route parsed commands."""
     server = _new_server(hass)
-    server.manage_incoming_messages_messages = AsyncMock()
+    server.manage_incoming_messages = AsyncMock()
     raw = (chr(0x02) + "ping" + chr(0x03) + "AA" + chr(0x04)).encode("utf-8")
 
     await server.on_message(raw)
 
-    server.manage_incoming_messages_messages.assert_awaited_once_with("ping", [], [])
+    server.manage_incoming_messages.assert_awaited_once_with("ping", [], [])
 
 
 async def test_wait_for_ldi_returns_false_on_timeout(hass: HomeAssistant) -> None:

@@ -26,7 +26,7 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
         "fetch_lights": True,
         "fetch_covers": True,
         "fetch_thermostats": True,
-        "onOffLightsAsSwitch": True,
+        "on_off_lights_as_switch": True,
     }
     settings.update(overrides)
     server = AveWebServer(settings, hass)
@@ -35,7 +35,9 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
     return server
 
 
-def _props(device_id: int = 4, name: str | None = "Thermostat Living") -> AveThermostatProperties:
+def _props(
+    device_id: int = 4, name: str | None = "Thermostat Living"
+) -> AveThermostatProperties:
     """Build thermostat properties for update tests."""
     props = AveThermostatProperties()
     props.device_id = device_id
@@ -137,7 +139,9 @@ def test_update_thermostat_bulk_properties_uses_properties_device_id(
     assert update.call_args_list[0].kwargs["ave_device_id"] == 22
 
 
-def test__update_thermostat_updates_existing_with_properties(hass: HomeAssistant) -> None:
+def test__update_thermostat_updates_existing_with_properties(
+    hass: HomeAssistant,
+) -> None:
     """Existing thermostat should apply full properties and optional name updates."""
     server = _new_server(hass, get_entities_names=True)
     unique_id = set_sensor_uid(server, AVE_FAMILY_THERMOSTAT, 4)
@@ -163,7 +167,9 @@ def test__update_thermostat_updates_existing_with_properties(hass: HomeAssistant
     thermostat.set_address_dec.assert_called_once_with(18)
 
 
-def test__update_thermostat_existing_respects_name_override(hass: HomeAssistant) -> None:
+def test__update_thermostat_existing_respects_name_override(
+    hass: HomeAssistant,
+) -> None:
     """Existing thermostat should not overwrite user name when override is detected."""
     server = _new_server(hass)
     unique_id = set_sensor_uid(server, AVE_FAMILY_THERMOSTAT, 4)

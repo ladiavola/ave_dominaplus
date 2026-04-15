@@ -34,13 +34,14 @@ This integration is intentionally lightweight and local-first:
 During setup/reconfigure you can tune these options:
 
 - `ip_address`: IP address of the AVE webserver.
-- `get_entities_names`: If enabled, use names from AVE configuration instead of generated names.
-- `fetch_sensor_areas`: Enable alarm area binary sensors.
-- `fetch_sensors`: Enable individual alarm sensor entities (discovered when they first report events).
 - `fetch_lights`: Enable on/off lights and dimmers.
+- `on_off_lights_as_switch`: Expose family-1 on/off lights as `switch` instead of `light`.
 - `fetch_covers`: Enable shutter/cover entities.
 - `fetch_thermostats`: Enable thermostat climate entities and related offset entities.
-- `onOffLightsAsSwitch`: Expose family-1 on/off lights as `switch` instead of `light`.
+- `fetch_scenarios`: Enable scenarios devices and related entities.
+- `fetch_sensor_areas`: Enable alarm area binary sensors.
+- `fetch_sensors`: Enable individual alarm sensor entities (discovered when they first report events).
+- `get_entities_names`: If enabled, use names from AVE configuration instead of generated names.
 
 ### Installation/network parameters
 

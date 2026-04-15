@@ -24,7 +24,7 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
         "fetch_lights": True,
         "fetch_covers": True,
         "fetch_thermostats": True,
-        "onOffLightsAsSwitch": True,
+        "on_off_lights_as_switch": True,
     }
     settings.update(overrides)
     server = AveWebServer(settings, hass)
@@ -98,7 +98,9 @@ def test_update_th_offset_updates_existing_entity(hass: HomeAssistant) -> None:
     server.async_add_number_entities.assert_not_called()
 
 
-def test_new_offset_uses_generated_name_when_names_disabled(hass: HomeAssistant) -> None:
+def test_new_offset_uses_generated_name_when_names_disabled(
+    hass: HomeAssistant,
+) -> None:
     """Generated naming should be used when AVE names are disabled."""
     server = _new_server(hass, get_entities_names=False)
 

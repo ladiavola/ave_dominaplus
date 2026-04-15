@@ -30,7 +30,7 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
         "fetch_covers": True,
         "fetch_scenarios": True,
         "fetch_thermostats": True,
-        "onOffLightsAsSwitch": True,
+        "on_off_lights_as_switch": True,
     }
     settings.update(overrides)
     return AveWebServer(settings, hass)
@@ -49,7 +49,7 @@ def _wire_callbacks(server: AveWebServer) -> None:
 
 def test_manage_upd_routes_onoff_to_switch_when_enabled(hass: HomeAssistant) -> None:
     """ON/OFF light updates route to switch callback when configured."""
-    server = _new_server(hass, onOffLightsAsSwitch=True)
+    server = _new_server(hass, on_off_lights_as_switch=True)
     _wire_callbacks(server)
 
     server.manage_upd(["WS", "1", "10", "1"], [])
@@ -62,7 +62,7 @@ def test_manage_upd_routes_onoff_to_switch_when_enabled(hass: HomeAssistant) -> 
 
 def test_manage_upd_routes_onoff_to_light_when_disabled(hass: HomeAssistant) -> None:
     """ON/OFF light updates route to light callback when switch mode is disabled."""
-    server = _new_server(hass, onOffLightsAsSwitch=False)
+    server = _new_server(hass, on_off_lights_as_switch=False)
     _wire_callbacks(server)
 
     server.manage_upd(["WS", "1", "11", "0"], [])
@@ -198,7 +198,7 @@ def test_manage_upd_routes_tt_when_map_and_command_ready(hass: HomeAssistant) ->
 
 def test_manage_ldi_li2_routes_onoff_with_address(hass: HomeAssistant) -> None:
     """LI2 on/off records route with parsed address information."""
-    server = _new_server(hass, onOffLightsAsSwitch=True)
+    server = _new_server(hass, on_off_lights_as_switch=True)
     _wire_callbacks(server)
 
     server.manage_ldi_li2([], [["100", "Kitchen", "1", "15"]], "li2")
@@ -268,7 +268,7 @@ async def test_manage_incoming_messages_routes_ping_to_pong(
     server = _new_server(hass)
     server.send_ws_command = AsyncMock()
 
-    await server.manage_incoming_messages_messages("ping", [], [])
+    await server.manage_incoming_messages("ping", [], [])
 
     server.send_ws_command.assert_awaited_once_with("PONG")
 

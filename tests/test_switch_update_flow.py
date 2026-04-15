@@ -27,7 +27,7 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
         "fetch_lights": True,
         "fetch_covers": True,
         "fetch_thermostats": True,
-        "onOffLightsAsSwitch": True,
+        "on_off_lights_as_switch": True,
     }
     settings.update(overrides)
     server = AveWebServer(settings, hass)

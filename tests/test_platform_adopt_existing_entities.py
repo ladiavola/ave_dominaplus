@@ -39,7 +39,7 @@ def _new_server(hass: HomeAssistant) -> AveWebServer:
         "fetch_covers": True,
         "fetch_scenarios": True,
         "fetch_thermostats": True,
-        "onOffLightsAsSwitch": True,
+        "on_off_lights_as_switch": True,
     }
     server = AveWebServer(settings, hass)
     server.mac_address = "aa:bb:cc:dd:ee:ff"

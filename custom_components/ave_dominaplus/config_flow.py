@@ -35,8 +35,8 @@ def _build_step_user_data_schema(defaults: dict[str, Any] | None = None) -> vol.
                 default=defaults.get("fetch_lights", True),
             ): bool,
             vol.Required(
-                "onOffLightsAsSwitch",
-                default=defaults.get("onOffLightsAsSwitch", True),
+                "on_off_lights_as_switch",
+                default=defaults.get("on_off_lights_as_switch", True),
             ): bool,
             vol.Required(
                 "fetch_thermostats",
@@ -130,7 +130,7 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
             "fetch_covers": True,
             "fetch_scenarios": True,
             "fetch_thermostats": True,
-            "onOffLightsAsSwitch": True,
+            "on_off_lights_as_switch": True,
         }
         self._async_abort_entries_match({CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS]})
 

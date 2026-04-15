@@ -24,7 +24,7 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
         "fetch_lights": True,
         "fetch_covers": True,
         "fetch_thermostats": True,
-        "onOffLightsAsSwitch": True,
+        "on_off_lights_as_switch": True,
     }
     settings.update(overrides)
     server = AveWebServer(settings, hass)
@@ -38,7 +38,9 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
     return server
 
 
-def test_update_cover_creates_entity_when_address_available(hass: HomeAssistant) -> None:
+def test_update_cover_creates_entity_when_address_available(
+    hass: HomeAssistant,
+) -> None:
     """A new cover should be created when address_dec is available."""
     server = _new_server(hass)
 
@@ -91,11 +93,15 @@ def test_update_cover_skips_when_feature_disabled(hass: HomeAssistant) -> None:
     server.async_add_cv_entities.assert_not_called()
 
 
-def test_update_cover_existing_entity_respects_manual_rename(hass: HomeAssistant) -> None:
+def test_update_cover_existing_entity_respects_manual_rename(
+    hass: HomeAssistant,
+) -> None:
     """Existing cover updates should not overwrite HA user-renamed names."""
     server = _new_server(hass)
     unique_id = build_uid(server.mac_address, AVE_FAMILY_SHUTTER_ROLLING, 5, 16)
-    cover = AveCover(unique_id, AVE_FAMILY_SHUTTER_ROLLING, 5, 3, server, address_dec=16)
+    cover = AveCover(
+        unique_id, AVE_FAMILY_SHUTTER_ROLLING, 5, 3, server, address_dec=16
+    )
     cover.set_name = Mock()
     cover.set_ave_name = Mock()
     cover.update_state = Mock()
@@ -127,7 +133,9 @@ def test_update_cover_existing_entity_updates_name_when_allowed(
     """Existing cover updates should apply AVE name when no user override exists."""
     server = _new_server(hass)
     unique_id = build_uid(server.mac_address, AVE_FAMILY_SHUTTER_ROLLING, 5, 16)
-    cover = AveCover(unique_id, AVE_FAMILY_SHUTTER_ROLLING, 5, 3, server, address_dec=16)
+    cover = AveCover(
+        unique_id, AVE_FAMILY_SHUTTER_ROLLING, 5, 3, server, address_dec=16
+    )
     cover.set_name = Mock()
     cover.set_ave_name = Mock()
     cover.update_state = Mock()
@@ -154,7 +162,9 @@ def test_update_cover_finds_existing_without_address(hass: HomeAssistant) -> Non
     """Existing cover should still update when runtime update has no address_dec."""
     server = _new_server(hass)
     unique_id = build_uid(server.mac_address, AVE_FAMILY_SHUTTER_ROLLING, 6, 21)
-    cover = AveCover(unique_id, AVE_FAMILY_SHUTTER_ROLLING, 6, 3, server, address_dec=21)
+    cover = AveCover(
+        unique_id, AVE_FAMILY_SHUTTER_ROLLING, 6, 3, server, address_dec=21
+    )
     cover.update_state = Mock()
     server.covers[unique_id] = cover
 

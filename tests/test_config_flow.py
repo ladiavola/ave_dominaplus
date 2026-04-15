@@ -29,7 +29,7 @@ MOCK_USER_INPUT: dict[str, object] = {
     "fetch_covers": True,
     "fetch_scenarios": True,
     "fetch_thermostats": True,
-    "onOffLightsAsSwitch": True,
+    "on_off_lights_as_switch": True,
 }
 
 

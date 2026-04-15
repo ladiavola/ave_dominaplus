@@ -34,7 +34,7 @@ def _new_server(hass: HomeAssistant) -> AveWebServer:
         "fetch_lights": True,
         "fetch_covers": True,
         "fetch_thermostats": True,
-        "onOffLightsAsSwitch": True,
+        "on_off_lights_as_switch": True,
     }
     server = AveWebServer(settings, hass)
     server.send_thermostat_sts = AsyncMock()
@@ -141,7 +141,9 @@ def test_update_from_fan_level_covers_all_modes(hass: HomeAssistant) -> None:
 async def test_async_set_temperature_dispatches_sts(hass: HomeAssistant) -> None:
     """Setting target temperature should dispatch STS with tenths conversion."""
     server = _new_server(hass)
-    thermostat = AveThermostat("uid", AVE_FAMILY_THERMOSTAT, _props(device_id=10), server)
+    thermostat = AveThermostat(
+        "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=10), server
+    )
 
     await thermostat.async_set_temperature(temperature=21.5)
 
@@ -151,10 +153,14 @@ async def test_async_set_temperature_dispatches_sts(hass: HomeAssistant) -> None
     )
 
 
-async def test_async_set_temperature_skips_without_temperature(hass: HomeAssistant) -> None:
+async def test_async_set_temperature_skips_without_temperature(
+    hass: HomeAssistant,
+) -> None:
     """Setting temperature should abort if no temperature value was provided."""
     server = _new_server(hass)
-    thermostat = AveThermostat("uid", AVE_FAMILY_THERMOSTAT, _props(device_id=10), server)
+    thermostat = AveThermostat(
+        "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=10), server
+    )
 
     await thermostat.async_set_temperature()
 
@@ -164,7 +170,9 @@ async def test_async_set_temperature_skips_without_temperature(hass: HomeAssista
 async def test_async_set_preset_mode_dispatches_sts(hass: HomeAssistant) -> None:
     """Preset mode updates should dispatch STS with manual/schedule mapping."""
     server = _new_server(hass)
-    thermostat = AveThermostat("uid", AVE_FAMILY_THERMOSTAT, _props(device_id=11), server)
+    thermostat = AveThermostat(
+        "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=11), server
+    )
 
     await thermostat.async_set_preset_mode(PRESET_SCHEDULE)
 
@@ -177,7 +185,9 @@ async def test_async_set_preset_mode_dispatches_sts(hass: HomeAssistant) -> None
 async def test_async_set_hvac_mode_off_dispatches_on_off(hass: HomeAssistant) -> None:
     """HVAC OFF should map to thermostat on_off command with value 0."""
     server = _new_server(hass)
-    thermostat = AveThermostat("uid", AVE_FAMILY_THERMOSTAT, _props(device_id=12), server)
+    thermostat = AveThermostat(
+        "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=12), server
+    )
 
     await thermostat.async_set_hvac_mode(HVACMode.OFF)
 
@@ -189,10 +199,14 @@ async def test_async_set_hvac_mode_heat_from_off_turns_on_then_sts(
 ) -> None:
     """Changing from OFF to HEAT should turn device on first, then send STS."""
     server = _new_server(hass)
-    thermostat = AveThermostat("uid", AVE_FAMILY_THERMOSTAT, _props(device_id=13), server)
+    thermostat = AveThermostat(
+        "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=13), server
+    )
     thermostat._attr_hvac_mode = HVACMode.OFF
 
-    with patch("custom_components.ave_dominaplus.climate.asyncio.sleep", new=AsyncMock()):
+    with patch(
+        "custom_components.ave_dominaplus.climate.asyncio.sleep", new=AsyncMock()
+    ):
         await thermostat.async_set_hvac_mode(HVACMode.HEAT)
 
     server.thermostat_on_off.assert_awaited_once_with(device_id=13, on_off=1)
@@ -205,7 +219,9 @@ async def test_async_set_hvac_mode_heat_from_off_turns_on_then_sts(
 async def test_async_turn_on_off_dispatches_on_off(hass: HomeAssistant) -> None:
     """Turn on/off methods should proxy thermostat on_off commands."""
     server = _new_server(hass)
-    thermostat = AveThermostat("uid", AVE_FAMILY_THERMOSTAT, _props(device_id=14), server)
+    thermostat = AveThermostat(
+        "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=14), server
+    )
 
     await thermostat.async_turn_on()
     await thermostat.async_turn_off()
@@ -231,7 +247,9 @@ def test_set_name_updates_entity_and_syncs_device_name(hass: HomeAssistant) -> N
 def test_sync_device_name_respects_name_by_user(hass: HomeAssistant) -> None:
     """Device registry sync should not overwrite user-selected device names."""
     server = _new_server(hass)
-    thermostat = AveThermostat("uid", AVE_FAMILY_THERMOSTAT, _props(device_id=15), server)
+    thermostat = AveThermostat(
+        "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=15), server
+    )
 
     device_registry = Mock()
     device_registry.async_get_device.return_value = SimpleNamespace(
@@ -240,7 +258,10 @@ def test_sync_device_name_respects_name_by_user(hass: HomeAssistant) -> None:
         name="Old",
     )
 
-    with patch("custom_components.ave_dominaplus.climate.dr.async_get", return_value=device_registry):
+    with patch(
+        "custom_components.ave_dominaplus.climate.dr.async_get",
+        return_value=device_registry,
+    ):
         thermostat._sync_device_name("Thermostat Living")
 
     device_registry.async_update_device.assert_not_called()

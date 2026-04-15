@@ -251,20 +251,20 @@ async def test_manage_incoming_dispatches_all_known_and_unknown_commands(
     server.manage_lmc = Mock()
     server.manage_wts = Mock()
 
-    await server.manage_incoming_messages_messages("pong", [], [])
-    await server.manage_incoming_messages_messages("ack", ["LI2"], [])
-    await server.manage_incoming_messages_messages("ping", [], [])
-    await server.manage_incoming_messages_messages("gsf", ["1"], [])
-    await server.manage_incoming_messages_messages("upd", ["WS"], [])
-    await server.manage_incoming_messages_messages("ldi", [], [])
-    await server.manage_incoming_messages_messages("li2", [], [])
-    await server.manage_incoming_messages_messages("lm", [], [])
-    await server.manage_incoming_messages_messages("lmc", ["1"], [])
-    await server.manage_incoming_messages_messages("wts", ["4"], [])
-    await server.manage_incoming_messages_messages("cld", [], [])
-    await server.manage_incoming_messages_messages("net", [], [])
-    await server.manage_incoming_messages_messages("nack", [], [])
-    await server.manage_incoming_messages_messages("unknown", [], [])
+    await server.manage_incoming_messages("pong", [], [])
+    await server.manage_incoming_messages("ack", ["LI2"], [])
+    await server.manage_incoming_messages("ping", [], [])
+    await server.manage_incoming_messages("gsf", ["1"], [])
+    await server.manage_incoming_messages("upd", ["WS"], [])
+    await server.manage_incoming_messages("ldi", [], [])
+    await server.manage_incoming_messages("li2", [], [])
+    await server.manage_incoming_messages("lm", [], [])
+    await server.manage_incoming_messages("lmc", ["1"], [])
+    await server.manage_incoming_messages("wts", ["4"], [])
+    await server.manage_incoming_messages("cld", [], [])
+    await server.manage_incoming_messages("net", [], [])
+    await server.manage_incoming_messages("nack", [], [])
+    await server.manage_incoming_messages("unknown", [], [])
 
     server.send_ws_command.assert_awaited_once_with("PONG")
     server.manage_gsf.assert_called_once()
@@ -322,7 +322,7 @@ def test_manage_gsf_routes_antitheft_dimmer_cover_and_light_mode(
     hass: HomeAssistant,
 ) -> None:
     """GSF handler should route families to the expected callbacks."""
-    server = make_server(hass, onOffLightsAsSwitch=False)
+    server = make_server(hass, on_off_lights_as_switch=False)
     server.update_binary_sensor = Mock()
     server.update_switch = Mock()
     server.update_light = Mock()
@@ -347,7 +347,7 @@ def test_manage_ldi_li2_covers_special_names_types_and_bad_address(
     hass: HomeAssistant,
 ) -> None:
     """LI2 parser should handle special names, passthrough types, and bad addresses."""
-    server = make_server(hass, onOffLightsAsSwitch=False)
+    server = make_server(hass, on_off_lights_as_switch=False)
     server.update_binary_sensor = Mock()
     server.update_button = Mock()
     server.update_switch = Mock()
