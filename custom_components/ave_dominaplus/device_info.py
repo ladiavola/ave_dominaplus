@@ -276,6 +276,18 @@ def ensure_scenarios_parent_device(server: AveWebServer, config_entry_id: str) -
         return
 
 
+def build_scenarios_parent_device_info(server: AveWebServer) -> DeviceInfo:
+    """Return device_info for the shared scenarios parent device."""
+    return DeviceInfo(
+        identifiers={_scenarios_parent_device_identifier(server)},
+        manufacturer="AVE",
+        model=_GROUP_MODELS[_GROUP_SCENARIOS],
+        name=_GROUP_NAMES[_GROUP_SCENARIOS],
+        via_device=_hub_device_identifier(server),
+        configuration_url=f"http://{server.settings.host}",
+    )
+
+
 def sync_device_registry_name(
     hass: HomeAssistant | None,
     device_info: DeviceInfo,

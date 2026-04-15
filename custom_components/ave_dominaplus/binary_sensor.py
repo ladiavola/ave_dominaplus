@@ -204,6 +204,11 @@ def update_binary_sensor(
         device_status,
     )
 
+    if family == AVE_FAMILY_SCENARIO:
+        update_scenario_calendar = getattr(server, "update_scenario_calendar", None)
+        if callable(update_scenario_calendar):
+            update_scenario_calendar(server, ave_device_id, device_status, name)
+
     unique_id = set_sensor_uid(family, ave_device_id, server)
     already_exists = unique_id in server.binary_sensors
 

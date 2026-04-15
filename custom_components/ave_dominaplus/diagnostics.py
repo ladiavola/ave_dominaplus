@@ -96,6 +96,7 @@ async def async_get_config_entry_diagnostics(
                 "fetch_lights": webserver.settings.fetch_lights,
                 "fetch_covers": webserver.settings.fetch_covers,
                 "fetch_scenarios": webserver.settings.fetch_scenarios,
+                "fetch_scenario_schedule": webserver.settings.fetch_scenario_schedule,
                 "fetch_thermostats": webserver.settings.fetch_thermostats,
             },
             "thermostat_flow": {

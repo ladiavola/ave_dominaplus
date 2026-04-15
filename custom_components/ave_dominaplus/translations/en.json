@@ -13,6 +13,7 @@
           "lights_options": "Lights options",
           "fetch_covers": "Get covers",
           "fetch_scenarios": "Get scenarios",
+          "fetch_scenario_schedule": "Get scenario schedule",
           "on_off_lights_as_switch": "On/Off lights as switches",
           "fetch_thermostats": "Get thermostats"
         },
@@ -22,6 +23,7 @@
           "fetch_sensors": "Will be discovered at the first event they fire. May create many entries in big systems.",
           "fetch_covers": "Adds shutter/cover entities (AVE families 3, 16, 19).",
           "fetch_scenarios": "Adds scenario run buttons and running-state binary sensors (AVE family 6).",
+          "fetch_scenario_schedule": "When enabled, reads scheduler programs from the webserver to generate future/past schedule events in the calendar.",
           "on_off_lights_as_switch": "Use simple switch entities for On/Off lights (AVE family 1)."
         }
       },
@@ -37,6 +39,7 @@
           "lights_options": "Lights options",
           "fetch_covers": "Get covers",
           "fetch_scenarios": "Get scenarios",
+          "fetch_scenario_schedule": "Get scenario schedule",
           "on_off_lights_as_switch": "On/Off lights as switches",
           "fetch_thermostats": "Get thermostats"
         },
@@ -46,6 +49,7 @@
           "fetch_sensors": "Will be discovered at the first event they fire. May create many entries in big systems.",
           "fetch_covers": "Adds shutter/cover entities (AVE families 3, 16, 19).",
           "fetch_scenarios": "Adds scenario run buttons and running-state binary sensors (AVE family 6).",
+          "fetch_scenario_schedule": "When enabled, reads scheduler programs from the webserver to generate future/past schedule events in the calendar.",
           "on_off_lights_as_switch": "Use simple switch entities for On/Off lights (AVE family 1)."
         }
       },
@@ -65,6 +69,7 @@
           "lights_options": "Lights options",
           "fetch_covers": "Get covers",
           "fetch_scenarios": "Get scenarios",
+          "fetch_scenario_schedule": "Get scenario schedule",
           "on_off_lights_as_switch": "On/Off lights as switches",
           "fetch_thermostats": "Get thermostats"
         },
@@ -74,6 +79,7 @@
           "fetch_sensors": "Will be discovered at the first event they fire. May create many entries in big systems.",
           "fetch_covers": "Adds shutter/cover entities (AVE families 3, 16, 19).",
           "fetch_scenarios": "Adds scenario run buttons and running-state binary sensors (AVE family 6).",
+          "fetch_scenario_schedule": "When enabled, reads scheduler programs from the webserver to generate future/past schedule events in the calendar.",
           "on_off_lights_as_switch": "Use simple switch entities for On/Off lights (AVE family 1)."
         }
       }

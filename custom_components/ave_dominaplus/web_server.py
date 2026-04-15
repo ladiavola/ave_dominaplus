@@ -46,6 +46,7 @@ class AveWebServerSettings:
     fetch_lights: bool
     fetch_covers: bool
     fetch_scenarios: bool
+    fetch_scenario_schedule: bool
     fetch_thermostats: bool
 
     def __init__(self) -> None:
@@ -57,6 +58,7 @@ class AveWebServerSettings:
         self.fetch_lights = False
         self.fetch_covers = False
         self.fetch_scenarios = True
+        self.fetch_scenario_schedule = True
         self.fetch_thermostats = False
         self.on_off_lights_as_switch = True
 
@@ -80,6 +82,9 @@ class AveWebServer:
             self.settings.fetch_lights = settings_data["fetch_lights"]
             self.settings.fetch_covers = settings_data.get("fetch_covers", True)
             self.settings.fetch_scenarios = settings_data.get("fetch_scenarios", True)
+            self.settings.fetch_scenario_schedule = settings_data.get(
+                "fetch_scenario_schedule", True
+            )
             self.settings.fetch_thermostats = settings_data["fetch_thermostats"]
             self.settings.on_off_lights_as_switch = settings_data.get(
                 "on_off_lights_as_switch", True
@@ -130,6 +135,8 @@ class AveWebServer:
         self.numbers: dict = {}  # Track number entities by unique ID
         self.async_add_number_entities: Any = None
         self.update_th_offset: Any = None
+        self.scenario_calendar_entity: Any = None
+        self.update_scenario_calendar: Any = None
 
     async def set_update_binary_sensor(self, func) -> None:
         """Set the set_update_binary_sensor method for binary sensors."""
@@ -1127,6 +1134,24 @@ class AveWebServer:
                     return response.status, None
             except Exception:
                 _LOGGER.exception("Error calling bridge")
+                return 900, None
+
+    async def call_gst_tasks_xml(self) -> tuple[int, str | None]:
+        """Call gst.php endpoint that exposes raw scheduler task XML metadata."""
+        async with aiohttp.ClientSession() as session:
+            try:
+                url = f"http://{self.settings.host}/gst.php"
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.text()
+                        return response.status, data
+                    _LOGGER.debug(
+                        "Failed to call gst.php. Status: %s",
+                        response.status,
+                    )
+                    return response.status, None
+            except Exception:
+                _LOGGER.exception("Error calling gst.php")
                 return 900, None
 
     async def tryget_mac_address(self) -> str | None:

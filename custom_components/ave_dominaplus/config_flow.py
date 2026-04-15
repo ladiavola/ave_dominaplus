@@ -51,6 +51,10 @@ def _build_step_user_data_schema(defaults: dict[str, Any] | None = None) -> vol.
                 default=defaults.get("fetch_scenarios", True),
             ): bool,
             vol.Required(
+                "fetch_scenario_schedule",
+                default=defaults.get("fetch_scenario_schedule", True),
+            ): bool,
+            vol.Required(
                 "fetch_sensor_areas",
                 default=defaults.get("fetch_sensor_areas", True),
             ): bool,
@@ -129,6 +133,7 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
             "fetch_lights": True,
             "fetch_covers": True,
             "fetch_scenarios": True,
+            "fetch_scenario_schedule": True,
             "fetch_thermostats": True,
             "on_off_lights_as_switch": True,
         }

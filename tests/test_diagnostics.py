@@ -84,6 +84,7 @@ async def test_async_get_config_entry_diagnostics_masks_sensitive_data() -> None
             fetch_lights=True,
             fetch_covers=True,
             fetch_scenarios=True,
+            fetch_scenario_schedule=True,
             fetch_thermostats=True,
         ),
         ave_map=SimpleNamespace(areas_loaded=True, command_loaded=False, areas={1: {}}),

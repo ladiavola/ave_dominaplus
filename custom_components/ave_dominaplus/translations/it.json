@@ -13,6 +13,7 @@
           "lights_options": "Opzioni luci",
           "fetch_covers": "Importa le tapparelle",
           "fetch_scenarios": "Importa gli scenari",
+          "fetch_scenario_schedule": "Importa la programmazione scenari",
           "on_off_lights_as_switch": "Luci On/Off come interruttori",
           "fetch_thermostats": "Importa i termostati"
         },
@@ -22,6 +23,7 @@
           "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità.",
           "fetch_covers": "Aggiunge entità tapparella/copertura (famiglie AVE 3, 16, 19).",
           "fetch_scenarios": "Aggiunge pulsanti di esecuzione scenario e binary sensor di stato in esecuzione (famiglia AVE 6).",
+          "fetch_scenario_schedule": "Se abilitato, legge la programmazione scenari dal webserver per generare eventi di calendario futuri/passati.",
           "on_off_lights_as_switch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
         }
       },
@@ -37,6 +39,7 @@
           "lights_options": "Opzioni luci",
           "fetch_covers": "Importa le tapparelle",
           "fetch_scenarios": "Importa gli scenari",
+          "fetch_scenario_schedule": "Importa la programmazione scenari",
           "on_off_lights_as_switch": "Luci On/Off come interruttori",
           "fetch_thermostats": "Importa i termostati"
         },
@@ -46,6 +49,7 @@
           "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità.",
           "fetch_covers": "Aggiunge entità tapparella/copertura (famiglie AVE 3, 16, 19).",
           "fetch_scenarios": "Aggiunge pulsanti di esecuzione scenario e binary sensor di stato in esecuzione (famiglia AVE 6).",
+          "fetch_scenario_schedule": "Se abilitato, legge la programmazione scenari dal webserver per generare eventi di calendario futuri/passati.",
           "on_off_lights_as_switch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
         }
       },
@@ -65,6 +69,7 @@
           "lights_options": "Opzioni luci",
           "fetch_covers": "Importa le tapparelle",
           "fetch_scenarios": "Importa gli scenari",
+          "fetch_scenario_schedule": "Importa la programmazione scenari",
           "on_off_lights_as_switch": "Luci On/Off come interruttori",
           "fetch_thermostats": "Importa i termostati"
         },
@@ -74,6 +79,7 @@
           "fetch_sensors": "Vengono scoperti al primo evento rilevato. In impianti grandi può creare molte entità.",
           "fetch_covers": "Aggiunge entità tapparella/copertura (famiglie AVE 3, 16, 19).",
           "fetch_scenarios": "Aggiunge pulsanti di esecuzione scenario e binary sensor di stato in esecuzione (famiglia AVE 6).",
+          "fetch_scenario_schedule": "Se abilitato, legge la programmazione scenari dal webserver per generare eventi di calendario futuri/passati.",
           "on_off_lights_as_switch": "Usa semplici entità switch per le luci On/Off (famiglia AVE 1)."
         }
       }
