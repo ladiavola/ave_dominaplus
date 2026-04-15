@@ -20,3 +20,28 @@ AVE_FAMILY_VIVALDI = 14  # but onl if name starts with _VIV_
 AVE_FAMILY_AVANO = 17
 AVE_FAMILY_LIGHTING_RGBW = 22
 AVE_FAMILY_MOTION_SENSOR = 1007  # not really a proper family, added in this integration do discriminate motion sensors from other devices
+
+
+AVE_UNHANDLED_UPD = {
+    "GUI": "GUI update",
+    "D": "Icon update",
+    "HO": "TS1 devices",
+    "VMM": "Daikin mode",
+    "TAF": "Thermostat anti-freezing",
+    "TK": "Thermostat keyboard lock",
+    "UMI": "Humidity probe",
+    "S": "Tutondo",
+    "VI": "Vivaldi",
+    "A": "Alarm",
+    "CS1": "Alarm",
+    "CS2": "Alarm",
+    "CS3": "Alarm",
+    "abl": "Abano",
+    "LL": "Label update",
+    "SRE": "Alarm silence",
+    "STO": "Alarm silence",
+    "RGB": "Colorwheel update",
+    "grp": "Group dimmer",
+    "epv": "Economizer values",
+    "htl": "Hotel",
+}
