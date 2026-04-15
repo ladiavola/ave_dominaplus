@@ -197,3 +197,6 @@ coverage.xml
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+
+
+0000032330/*
