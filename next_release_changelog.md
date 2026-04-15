@@ -1,8 +1,9 @@
-ave_dominaplus — v1.4.0
+ave_dominaplus — v1.5.0
 
 Highlights
 - Support for dimmers (non-RGBW). Thanks to @jean_coqs and @bisi77 for the contribution.
 - Support for shutters. Thanks to @jean_coqs and @0xmtb for the contribution.
+- Support for scenarios.
 - Gracefully handles reconnection after webserver disconnections
 - Entities now grouped in devices
 - Optional: expose on/off devices as lights instead of switches (may require reconfiguration).
