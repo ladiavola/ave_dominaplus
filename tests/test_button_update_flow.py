@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 from custom_components.ave_dominaplus.button import (
@@ -87,6 +88,75 @@ def test_update_button_existing_respects_manual_rename(hass: HomeAssistant) -> N
 
     button.set_ave_name.assert_called_once_with("Evening")
     button.set_name.assert_not_called()
+
+
+def test_update_button_existing_refreshes_device_info_name(hass: HomeAssistant) -> None:
+    """Scenario device info name should refresh when AVE name arrives later."""
+    server = _new_server(hass, get_entities_names=True)
+
+    update_button(server, AVE_FAMILY_SCENARIO, 21, name=None)
+    unique_id = set_button_uid(server, AVE_FAMILY_SCENARIO, 21)
+    button = server.buttons[unique_id]
+    assert button._attr_device_info.get("name") == "Scenario 21"
+
+    update_button(server, AVE_FAMILY_SCENARIO, 21, name="Evening")
+
+    assert button.name == "Evening Run"
+    assert button._attr_device_info.get("name") == "Scenario Evening"
+
+
+def test_scenario_button_sync_device_name_respects_name_by_user(
+    hass: HomeAssistant,
+) -> None:
+    """Device registry updates must not overwrite user-customized device names."""
+    server = _new_server(hass)
+    button = ScenarioButton("uid", AVE_FAMILY_SCENARIO, 17, server)
+    button.entity_id = "button.uid"
+    button.async_write_ha_state = Mock()
+
+    device_registry = Mock()
+    device_registry.async_get_device.return_value = SimpleNamespace(
+        id="dev-1",
+        name_by_user="Custom",
+        name="Old",
+    )
+
+    with patch(
+        "custom_components.ave_dominaplus.button.dr.async_get",
+        return_value=device_registry,
+    ):
+        button.set_ave_name("Evening")
+
+    assert button._attr_device_info.get("name") == "Scenario Evening"
+    device_registry.async_update_device.assert_not_called()
+
+
+def test_scenario_button_sync_device_name_updates_when_not_customized(
+    hass: HomeAssistant,
+) -> None:
+    """Device registry name should update when no user override exists."""
+    server = _new_server(hass)
+    button = ScenarioButton("uid", AVE_FAMILY_SCENARIO, 18, server)
+    button.entity_id = "button.uid"
+    button.async_write_ha_state = Mock()
+
+    device_registry = Mock()
+    device_registry.async_get_device.return_value = SimpleNamespace(
+        id="dev-2",
+        name_by_user=None,
+        name="Scenario 18",
+    )
+
+    with patch(
+        "custom_components.ave_dominaplus.button.dr.async_get",
+        return_value=device_registry,
+    ):
+        button.set_ave_name("Night")
+
+    device_registry.async_update_device.assert_called_once_with(
+        device_id="dev-2",
+        name="Scenario Night",
+    )
 
 
 async def test_scenario_button_press_routes_to_webserver(hass: HomeAssistant) -> None:

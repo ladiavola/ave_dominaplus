@@ -11,7 +11,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util.dt import utcnow
 
@@ -552,7 +552,42 @@ class ScenarioRunningBinarySensor(BinarySensorEntity):
         """Set the original name of the sensor."""
         if name is not None:
             self._ave_name = name
-            self.async_write_ha_state()
+            self._sync_device_name(name)
+            if self.hass:
+                self.async_write_ha_state()
+
+    def _sync_device_name(self, ave_name: str) -> None:
+        """Sync scenario device name unless user customized it in HA."""
+        updated_device_info = build_endpoint_device_info(
+            self._webserver,
+            self.family,
+            self.ave_device_id,
+            ave_name=ave_name,
+        )
+        self._attr_device_info = updated_device_info
+
+        if self.hass is None:
+            return
+
+        identifiers = updated_device_info.get("identifiers")
+        if not identifiers:
+            return
+
+        device_registry = dr.async_get(self.hass)
+        device_entry = device_registry.async_get_device(identifiers=identifiers)
+        if device_entry is None:
+            return
+
+        # Respect user-chosen device names from the HA UI.
+        if device_entry.name_by_user is not None:
+            return
+
+        resolved_name = updated_device_info.get("name")
+        if resolved_name and device_entry.name != resolved_name:
+            device_registry.async_update_device(
+                device_id=device_entry.id,
+                name=resolved_name,
+            )
 
     def build_name(self) -> str:
         """Build the default name for this sensor."""

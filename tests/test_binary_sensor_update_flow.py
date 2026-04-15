@@ -184,6 +184,93 @@ def test_update_scenario_binary_sensor_existing_respects_manual_rename(
     sensor.set_name.assert_not_called()
 
 
+def test_update_scenario_binary_sensor_refreshes_device_info_name(
+    hass: HomeAssistant,
+) -> None:
+    """Scenario device info name should refresh when AVE name arrives later."""
+    server = _new_server(hass, get_entities_names=True)
+
+    update_binary_sensor(server, AVE_FAMILY_SCENARIO, 29, 0, name=None)
+    unique_id = set_sensor_uid(AVE_FAMILY_SCENARIO, 29, server)
+    sensor = server.binary_sensors[unique_id]
+    sensor.entity_id = "binary_sensor.scenario_29_running"
+    sensor.async_write_ha_state = Mock()
+    assert sensor._attr_device_info.get("name") == "Scenario 29"
+
+    update_binary_sensor(server, AVE_FAMILY_SCENARIO, 29, 1, name="Wake Up")
+
+    assert sensor.name == "Wake Up Running"
+    assert sensor._attr_device_info.get("name") == "Scenario Wake Up"
+
+
+def test_scenario_running_sync_device_name_respects_name_by_user(
+    hass: HomeAssistant,
+) -> None:
+    """Device registry updates must not overwrite user-customized scenario devices."""
+    server = _new_server(hass)
+    sensor = ScenarioRunningBinarySensor(
+        "uid",
+        AVE_FAMILY_SCENARIO,
+        31,
+        False,
+        hass,
+        server,
+    )
+    sensor.entity_id = "binary_sensor.uid"
+    sensor.async_write_ha_state = Mock()
+
+    device_registry = Mock()
+    device_registry.async_get_device.return_value = SimpleNamespace(
+        id="dev-3",
+        name_by_user="Custom",
+        name="Old",
+    )
+
+    with patch(
+        "custom_components.ave_dominaplus.binary_sensor.dr.async_get",
+        return_value=device_registry,
+    ):
+        sensor.set_ave_name("Relax")
+
+    assert sensor._attr_device_info.get("name") == "Scenario Relax"
+    device_registry.async_update_device.assert_not_called()
+
+
+def test_scenario_running_sync_device_name_updates_when_not_customized(
+    hass: HomeAssistant,
+) -> None:
+    """Device registry name should update when there is no user override."""
+    server = _new_server(hass)
+    sensor = ScenarioRunningBinarySensor(
+        "uid",
+        AVE_FAMILY_SCENARIO,
+        32,
+        False,
+        hass,
+        server,
+    )
+    sensor.entity_id = "binary_sensor.uid"
+    sensor.async_write_ha_state = Mock()
+
+    device_registry = Mock()
+    device_registry.async_get_device.return_value = SimpleNamespace(
+        id="dev-4",
+        name_by_user=None,
+        name="Scenario 32",
+    )
+
+    with patch(
+        "custom_components.ave_dominaplus.binary_sensor.dr.async_get",
+        return_value=device_registry,
+    ):
+        sensor.set_ave_name("Party")
+
+    device_registry.async_update_device.assert_called_once_with(
+        device_id="dev-4",
+        name="Scenario Party",
+    )
+
+
 def test_motion_sensor_update_state_tracks_timestamps(hass: HomeAssistant) -> None:
     """Motion sensor state changes should set revealed/cleared timestamps."""
     server = _new_server(hass)
