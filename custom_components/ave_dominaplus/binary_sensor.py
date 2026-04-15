@@ -70,10 +70,13 @@ async def adopt_existing_sensors(server: AveWebServer, entry: ConfigEntry) -> No
                 continue
 
             name = entity.name if entity.name is not None else entity.original_name
+            original_device_class = getattr(entity, "original_device_class", None)
             sensor = None
 
             motion_uid = _parse_motion_uid(entity.unique_id)
             if motion_uid is not None:
+                if original_device_class not in ("motion", None):
+                    continue
                 family, ave_device_id = motion_uid
                 if (
                     family == AVE_FAMILY_ANTITHEFT_AREA
@@ -97,6 +100,8 @@ async def adopt_existing_sensors(server: AveWebServer, entry: ConfigEntry) -> No
 
             scenario_uid = parse_uid(entity.unique_id)
             if scenario_uid is not None:
+                if original_device_class not in ("running", None):
+                    continue
                 _uid_mac, family, ave_device_id, _address_dec, uid_suffix = scenario_uid
                 if uid_suffix != SCENARIO_RUNNING_UID_SUFFIX:
                     continue
