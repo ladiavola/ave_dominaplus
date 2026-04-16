@@ -5,7 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
-from custom_components.ave_dominaplus import ws_routing
+from custom_components.ave_dominaplus import ws_commands, ws_routing
 from custom_components.ave_dominaplus.const import (
     AVE_FAMILY_ANTITHEFT,
     AVE_FAMILY_ANTITHEFT_AREA,
@@ -424,13 +424,13 @@ async def test_disconnected_command_helpers_cover_remaining_error_paths(
     server.ws_conn = None
     server.send_ws_command = AsyncMock()
 
-    await server.switch_turn_off(1)
-    await server.switch_toggle(1)
-    await server.dimmer_turn_on(2, 8)
-    await server.dimmer_toggle(2)
-    await server.cover_close(3)
-    await server.cover_stop(3, "9")
-    await server.thermostat_on_off(4, 1)
+    await ws_commands.switch_turn_off(server, 1)
+    await ws_commands.switch_toggle(server, 1)
+    await ws_commands.dimmer_turn_on(server, 2, 8)
+    await ws_commands.dimmer_toggle(server, 2)
+    await ws_commands.cover_close(server, 3)
+    await ws_commands.cover_stop(server, 3, "9")
+    await ws_commands.thermostat_on_off(server, 4, 1)
 
     server.send_ws_command.assert_not_awaited()
 

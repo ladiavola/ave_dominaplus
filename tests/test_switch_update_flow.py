@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, Mock, patch
 
+from custom_components.ave_dominaplus import ws_commands
 from custom_components.ave_dominaplus.const import (
     AVE_FAMILY_ONOFFLIGHTS,
     AVE_FAMILY_SCENARIO,
@@ -35,9 +36,6 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
     server.async_add_sw_entities = Mock()
     server.register_availability_entity = Mock()
     server.unregister_availability_entity = Mock()
-    server.switch_turn_on = AsyncMock()
-    server.switch_turn_off = AsyncMock()
-    server.switch_toggle = AsyncMock()
     return server
 
 
@@ -127,13 +125,20 @@ async def test_switch_commands_route_to_webserver(hass: HomeAssistant) -> None:
     server = _new_server(hass)
     switch = LightSwitch("uid", AVE_FAMILY_ONOFFLIGHTS, 11, 0, server)
 
-    await switch.async_turn_on()
-    await switch.async_turn_off()
-    await switch.async_toggle()
+    with (
+        patch.object(ws_commands, "switch_turn_on", new=AsyncMock()) as switch_turn_on,
+        patch.object(
+            ws_commands, "switch_turn_off", new=AsyncMock()
+        ) as switch_turn_off,
+        patch.object(ws_commands, "switch_toggle", new=AsyncMock()) as switch_toggle,
+    ):
+        await switch.async_turn_on()
+        await switch.async_turn_off()
+        await switch.async_toggle()
 
-    server.switch_turn_on.assert_awaited_once_with(11)
-    server.switch_turn_off.assert_awaited_once_with(11)
-    server.switch_toggle.assert_awaited_once_with(11)
+    switch_turn_on.assert_awaited_once_with(server, 11)
+    switch_turn_off.assert_awaited_once_with(server, 11)
+    switch_toggle.assert_awaited_once_with(server, 11)
 
 
 async def test_switch_lifecycle_registers_and_unregisters_availability(

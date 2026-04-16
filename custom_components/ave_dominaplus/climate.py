@@ -21,6 +21,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from . import ws_commands
 from .ave_map import AveMapCommand
 from .ave_thermostat import AveThermostatProperties
 from .const import AVE_FAMILY_THERMOSTAT
@@ -542,8 +543,8 @@ class AveThermostat(ClimateEntity):
         parameters = [str(self.ave_properties.device_id)]
         records = [[season, 1, int(temperature * 10)]]
         if self._webserver:
-            await self._webserver.send_thermostat_sts(
-                parameters=parameters, records=records
+            await ws_commands.send_thermostat_sts(
+                self._webserver, parameters=parameters, records=records
             )
 
     async def async_set_fan_mode(self, fan_mode) -> None:
@@ -581,21 +582,21 @@ class AveThermostat(ClimateEntity):
         _mode = 1 if preset_mode == PRESET_MANUAL else 0
         records = [[season, _mode, int(self._attr_target_temperature * 10)]]
         if self._webserver:
-            await self._webserver.send_thermostat_sts(
-                parameters=parameters, records=records
+            await ws_commands.send_thermostat_sts(
+                self._webserver, parameters=parameters, records=records
             )
 
     async def async_set_hvac_mode(self, hvac_mode) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.OFF:
-            await self._webserver.thermostat_on_off(
-                device_id=self.ave_properties.device_id, on_off=0
+            await ws_commands.thermostat_on_off(
+                self._webserver, device_id=self.ave_properties.device_id, on_off=0
             )
         elif hvac_mode in {HVACMode.HEAT, HVACMode.COOL}:
             # TODO Tries to turn on the thermostat if it's currently off, needs testing
             if self.hvac_mode == HVACMode.OFF:
-                await self._webserver.thermostat_on_off(
-                    device_id=self.ave_properties.device_id, on_off=1
+                await ws_commands.thermostat_on_off(
+                    self._webserver, device_id=self.ave_properties.device_id, on_off=1
                 )
                 await asyncio.sleep(1)
 
@@ -610,20 +611,20 @@ class AveThermostat(ClimateEntity):
             _mode = 1 if self._attr_preset_mode == PRESET_MANUAL else 0
             records = [[season, _mode, int(self._attr_target_temperature * 10)]]
             if self._webserver:
-                await self._webserver.send_thermostat_sts(
-                    parameters=parameters, records=records
+                await ws_commands.send_thermostat_sts(
+                    self._webserver, parameters=parameters, records=records
                 )
 
     async def async_turn_on(self) -> None:
         """Turn the entity on."""
-        await self._webserver.thermostat_on_off(
-            device_id=self.ave_properties.device_id, on_off=1
+        await ws_commands.thermostat_on_off(
+            self._webserver, device_id=self.ave_properties.device_id, on_off=1
         )
 
     async def async_turn_off(self) -> None:
         """Turn the entity off."""
-        await self._webserver.thermostat_on_off(
-            device_id=self.ave_properties.device_id, on_off=0
+        await ws_commands.thermostat_on_off(
+            self._webserver, device_id=self.ave_properties.device_id, on_off=0
         )
 
     @property

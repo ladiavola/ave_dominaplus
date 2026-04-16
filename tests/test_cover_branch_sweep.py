@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from custom_components.ave_dominaplus import ws_commands
 from custom_components.ave_dominaplus.const import (
     AVE_FAMILY_SHUTTER_HUNG,
     AVE_FAMILY_SHUTTER_ROLLING,
@@ -376,9 +377,6 @@ def test_check_name_changed_handles_name_override_and_missing_entry(hass) -> Non
 async def test_cover_entity_methods_and_properties_cover_remaining_paths(hass) -> None:
     """Cover entity helpers should handle stop/no-webserver and property branches."""
     server = make_server(hass)
-    server.cover_open = AsyncMock()
-    server.cover_close = AsyncMock()
-    server.cover_stop = AsyncMock()
     server._set_connected(True)
 
     cover = AveCover("uid", AVE_FAMILY_SHUTTER_ROLLING, 5, 1, server)
@@ -400,14 +398,22 @@ async def test_cover_entity_methods_and_properties_cover_remaining_paths(hass) -
     cover.update_state(4)
     assert cover.is_closing is True
 
-    await cover.async_open_cover()
-    await cover.async_close_cover()
+    with (
+        patch.object(ws_commands, "cover_open", new=AsyncMock()) as cover_open,
+        patch.object(ws_commands, "cover_close", new=AsyncMock()) as cover_close,
+        patch.object(ws_commands, "cover_stop", new=AsyncMock()) as cover_stop,
+    ):
+        await cover.async_open_cover()
+        await cover.async_close_cover()
 
-    await cover.async_stop_cover()
-    server.cover_stop.assert_awaited_once_with(5, "9")
+        await cover.async_stop_cover()
+        cover_stop.assert_awaited_once_with(server, 5, "9")
 
-    cover._webserver = None
-    await cover.async_stop_cover()
+        cover._webserver = None
+        await cover.async_stop_cover()
+
+    cover_open.assert_awaited_once_with(server, 5)
+    cover_close.assert_awaited_once_with(server, 5)
 
 
 def test_cover_mutators_and_write_defer_paths(hass) -> None:

@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from custom_components.ave_dominaplus import ws_commands
 from custom_components.ave_dominaplus.ave_thermostat import AveThermostatProperties
 from custom_components.ave_dominaplus.climate import (
     PRESET_MANUAL,
@@ -62,20 +63,14 @@ async def test_async_setup_entry_registers_callbacks_and_adopts(hass) -> None:
     server.set_async_add_th_entities = AsyncMock()
     server.set_update_thermostat = AsyncMock()
 
-    with (
-        patch(
-            "custom_components.ave_dominaplus.climate.adopt_existing_sensors",
-            new=AsyncMock(),
-        ) as adopt_mock,
-        patch(
-            "custom_components.ave_dominaplus.climate.ensure_thermostats_parent_device"
-        ) as ensure_parent,
-    ):
+    with patch(
+        "custom_components.ave_dominaplus.climate.adopt_existing_sensors",
+        new=AsyncMock(),
+    ) as adopt_mock:
         await async_setup_entry(hass, _entry(server), Mock())
 
     server.set_async_add_th_entities.assert_awaited_once()
     server.set_update_thermostat.assert_awaited_once()
-    ensure_parent.assert_called_once_with(server, "entry-1")
     adopt_mock.assert_awaited_once()
 
 
@@ -196,8 +191,6 @@ def test_check_name_changed_true_and_false_branches(hass) -> None:
 async def test_thermostat_entity_edge_paths_and_lifecycle(hass) -> None:
     """Thermostat entity should cover lifecycle, guards, and sync-device branches."""
     server = make_server(hass)
-    server.send_thermostat_sts = AsyncMock()
-    server.thermostat_on_off = AsyncMock()
     thermostat = AveThermostat(
         unique_id="uid",
         family=AVE_FAMILY_THERMOSTAT,
@@ -234,19 +227,30 @@ async def test_thermostat_entity_edge_paths_and_lifecycle(hass) -> None:
     thermostat.update_specific_property("mode", "A")
     thermostat.update_ave_properties(_props(device_id=9, name="New"))
 
-    thermostat.ave_properties.season = ""
-    await thermostat.async_set_temperature(temperature=21)
-    thermostat.ave_properties.season = "1"
-    await thermostat.async_set_temperature()
+    with (
+        patch.object(
+            ws_commands, "send_thermostat_sts", new=AsyncMock()
+        ) as send_thermostat_sts,
+        patch.object(
+            ws_commands, "thermostat_on_off", new=AsyncMock()
+        ) as thermostat_on_off,
+    ):
+        thermostat.ave_properties.season = ""
+        await thermostat.async_set_temperature(temperature=21)
+        thermostat.ave_properties.season = "1"
+        await thermostat.async_set_temperature()
 
-    thermostat.ave_properties.season = ""
-    await thermostat.async_set_preset_mode(PRESET_MANUAL)
-    thermostat.ave_properties.season = "1"
-    thermostat._attr_target_temperature = None
-    await thermostat.async_set_preset_mode(PRESET_MANUAL)
+        thermostat.ave_properties.season = ""
+        await thermostat.async_set_preset_mode(PRESET_MANUAL)
+        thermostat.ave_properties.season = "1"
+        thermostat._attr_target_temperature = None
+        await thermostat.async_set_preset_mode(PRESET_MANUAL)
 
-    thermostat._attr_target_temperature = None
-    await thermostat.async_set_hvac_mode(hvac_mode="heat")
+        thermostat._attr_target_temperature = None
+        await thermostat.async_set_hvac_mode(hvac_mode="heat")
+
+    send_thermostat_sts.assert_not_awaited()
+    thermostat_on_off.assert_not_awaited()
 
     # Cover sync-device early return branches.
     thermostat.hass = None

@@ -14,6 +14,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from . import ws_commands
 from .const import (
     AVE_FAMILY_SHUTTER_HUNG,
     AVE_FAMILY_SHUTTER_ROLLING,
@@ -323,12 +324,12 @@ class AveCover(CoverEntity):
     async def async_open_cover(self, **kwargs: Any) -> None:
         """Open the cover."""
         if self._webserver:
-            await self._webserver.cover_open(self.ave_device_id)
+            await ws_commands.cover_open(self._webserver, self.ave_device_id)
 
     async def async_close_cover(self, **kwargs: Any) -> None:
         """Close the cover."""
         if self._webserver:
-            await self._webserver.cover_close(self.ave_device_id)
+            await ws_commands.cover_close(self._webserver, self.ave_device_id)
 
     async def async_stop_cover(self, **kwargs: Any) -> None:
         """Stop the cover following AVE direction-sensitive behavior."""
@@ -342,7 +343,7 @@ class AveCover(CoverEntity):
         else:
             return
 
-        await self._webserver.cover_stop(self.ave_device_id, stop_command)
+        await ws_commands.cover_stop(self._webserver, self.ave_device_id, stop_command)
 
     @property
     def unique_id(self) -> str:

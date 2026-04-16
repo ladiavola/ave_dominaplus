@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, Mock, patch
 
+from custom_components.ave_dominaplus import ws_commands
 from custom_components.ave_dominaplus.const import (
     AVE_FAMILY_SHUTTER_HUNG,
     AVE_FAMILY_SHUTTER_ROLLING,
@@ -32,9 +33,6 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
     server.async_add_cv_entities = Mock()
     server.register_availability_entity = Mock()
     server.unregister_availability_entity = Mock()
-    server.cover_open = AsyncMock()
-    server.cover_close = AsyncMock()
-    server.cover_stop = AsyncMock()
     return server
 
 
@@ -181,24 +179,29 @@ def test_update_cover_finds_existing_without_address(hass: HomeAssistant) -> Non
 
 
 async def test_cover_open_close_and_stop_commands(hass: HomeAssistant) -> None:
-    """Cover command APIs should route to webserver methods."""
+    """Cover command APIs should route to ws command helpers."""
     server = _new_server(hass)
     cover = AveCover("uid", AVE_FAMILY_SHUTTER_HUNG, 9, 3, server)
 
-    await cover.async_open_cover()
-    await cover.async_close_cover()
+    with (
+        patch.object(ws_commands, "cover_open", new=AsyncMock()) as cover_open,
+        patch.object(ws_commands, "cover_close", new=AsyncMock()) as cover_close,
+        patch.object(ws_commands, "cover_stop", new=AsyncMock()) as cover_stop,
+    ):
+        await cover.async_open_cover()
+        await cover.async_close_cover()
 
-    cover.update_state(2)
-    await cover.async_stop_cover()
+        cover.update_state(2)
+        await cover.async_stop_cover()
 
-    cover.update_state(4)
-    await cover.async_stop_cover()
+        cover.update_state(4)
+        await cover.async_stop_cover()
 
-    server.cover_open.assert_awaited_once_with(9)
-    server.cover_close.assert_awaited_once_with(9)
-    assert server.cover_stop.await_count == 2
-    server.cover_stop.assert_any_await(9, "8")
-    server.cover_stop.assert_any_await(9, "9")
+    cover_open.assert_awaited_once_with(server, 9)
+    cover_close.assert_awaited_once_with(server, 9)
+    assert cover_stop.await_count == 2
+    cover_stop.assert_any_await(server, 9, "8")
+    cover_stop.assert_any_await(server, 9, "9")
 
 
 async def test_cover_stop_ignored_when_not_moving(hass: HomeAssistant) -> None:
@@ -206,9 +209,10 @@ async def test_cover_stop_ignored_when_not_moving(hass: HomeAssistant) -> None:
     server = _new_server(hass)
     cover = AveCover("uid", AVE_FAMILY_SHUTTER_ROLLING, 9, 3, server)
 
-    await cover.async_stop_cover()
+    with patch.object(ws_commands, "cover_stop", new=AsyncMock()) as cover_stop:
+        await cover.async_stop_cover()
 
-    server.cover_stop.assert_not_awaited()
+    cover_stop.assert_not_awaited()
 
 
 async def test_cover_lifecycle_registers_and_unregisters_availability(

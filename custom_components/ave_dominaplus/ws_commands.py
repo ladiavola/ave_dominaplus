@@ -54,7 +54,7 @@ async def dimmer_turn_on(
     """Turn on the dimmer."""
     clamped_level = max(0, min(31, int(brightness_ave)))
     if clamped_level == 0:
-        await server.dimmer_turn_off(device_id)
+        await dimmer_turn_off(server, device_id)
         return
 
     if _is_ws_connected(server):

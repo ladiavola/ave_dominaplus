@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+from custom_components.ave_dominaplus import ws_commands
 from custom_components.ave_dominaplus.button import (
     ScenarioButton,
     set_button_uid,
@@ -35,7 +36,6 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
     server.async_add_bt_entities = Mock()
     server.register_availability_entity = Mock()
     server.unregister_availability_entity = Mock()
-    server.scenario_execute = AsyncMock()
     return server
 
 
@@ -164,9 +164,10 @@ async def test_scenario_button_press_routes_to_webserver(hass: HomeAssistant) ->
     server = _new_server(hass)
     button = ScenarioButton("uid", AVE_FAMILY_SCENARIO, 11, server)
 
-    await button.async_press()
+    with patch.object(ws_commands, "scenario_execute", new=AsyncMock()) as execute:
+        await button.async_press()
 
-    server.scenario_execute.assert_awaited_once_with(11)
+    execute.assert_awaited_once_with(server, 11)
 
 
 async def test_scenario_button_lifecycle_registers_availability(

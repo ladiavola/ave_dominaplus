@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
+from custom_components.ave_dominaplus import ws_commands
 from custom_components.ave_dominaplus.const import (
     AVE_FAMILY_DIMMER,
     AVE_FAMILY_ONOFFLIGHTS,
@@ -266,29 +267,35 @@ def test_check_name_changed_handles_name_override_and_missing_entry(hass) -> Non
 async def test_entity_command_methods_cover_toggle_on_off_paths(hass) -> None:
     """Entity command methods should route by family and handle missing webserver."""
     server = make_server(hass)
-    server.switch_toggle = AsyncMock()
-    server.dimmer_toggle = AsyncMock()
-    server.switch_turn_on = AsyncMock()
-    server.dimmer_turn_on = AsyncMock()
-    server.switch_turn_off = AsyncMock()
-    server.dimmer_turn_off = AsyncMock()
 
     onoff = DimmerLight("uid-onoff", AVE_FAMILY_ONOFFLIGHTS, 3, 0, server)
     dimmer = DimmerLight("uid-dimmer", AVE_FAMILY_DIMMER, 4, 0, server)
 
-    await onoff.async_toggle()
-    await dimmer.async_toggle()
-    await onoff.async_turn_on()
-    await dimmer.async_turn_on()
-    await onoff.async_turn_off()
-    await dimmer.async_turn_off()
+    with (
+        patch.object(ws_commands, "switch_toggle", new=AsyncMock()) as switch_toggle,
+        patch.object(ws_commands, "dimmer_toggle", new=AsyncMock()) as dimmer_toggle,
+        patch.object(ws_commands, "switch_turn_on", new=AsyncMock()) as switch_turn_on,
+        patch.object(ws_commands, "dimmer_turn_on", new=AsyncMock()) as dimmer_turn_on,
+        patch.object(
+            ws_commands, "switch_turn_off", new=AsyncMock()
+        ) as switch_turn_off,
+        patch.object(
+            ws_commands, "dimmer_turn_off", new=AsyncMock()
+        ) as dimmer_turn_off,
+    ):
+        await onoff.async_toggle()
+        await dimmer.async_toggle()
+        await onoff.async_turn_on()
+        await dimmer.async_turn_on()
+        await onoff.async_turn_off()
+        await dimmer.async_turn_off()
 
-    server.switch_toggle.assert_awaited_once_with(3)
-    server.dimmer_toggle.assert_awaited_once_with(4)
-    server.switch_turn_on.assert_awaited_once_with(3)
-    server.dimmer_turn_on.assert_awaited_once_with(4, 31)
-    server.switch_turn_off.assert_awaited_once_with(3)
-    server.dimmer_turn_off.assert_awaited_once_with(4)
+    switch_toggle.assert_awaited_once_with(server, 3)
+    dimmer_toggle.assert_awaited_once_with(server, 4)
+    switch_turn_on.assert_awaited_once_with(server, 3)
+    dimmer_turn_on.assert_awaited_once_with(server, 4, 31)
+    switch_turn_off.assert_awaited_once_with(server, 3)
+    dimmer_turn_off.assert_awaited_once_with(server, 4)
 
     dimmer._webserver = None
     await dimmer.async_toggle()

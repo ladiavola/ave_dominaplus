@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+from custom_components.ave_dominaplus import ws_commands
 from custom_components.ave_dominaplus.ave_thermostat import AveThermostatProperties
 from custom_components.ave_dominaplus.climate import (
     PRESET_MANUAL,
@@ -25,7 +26,7 @@ from homeassistant.core import HomeAssistant
 
 
 def _new_server(hass: HomeAssistant) -> AveWebServer:
-    """Build a webserver with thermostat command mocks."""
+    """Build a webserver with thermostat-friendly defaults."""
     settings = {
         "ip_address": "192.168.1.10",
         "get_entities_names": True,
@@ -37,8 +38,6 @@ def _new_server(hass: HomeAssistant) -> AveWebServer:
         "on_off_lights_as_switch": True,
     }
     server = AveWebServer(settings, hass)
-    server.send_thermostat_sts = AsyncMock()
-    server.thermostat_on_off = AsyncMock()
     return server
 
 
@@ -145,9 +144,13 @@ async def test_async_set_temperature_dispatches_sts(hass: HomeAssistant) -> None
         "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=10), server
     )
 
-    await thermostat.async_set_temperature(temperature=21.5)
+    with patch.object(
+        ws_commands, "send_thermostat_sts", new=AsyncMock()
+    ) as send_thermostat_sts:
+        await thermostat.async_set_temperature(temperature=21.5)
 
-    server.send_thermostat_sts.assert_awaited_once_with(
+    send_thermostat_sts.assert_awaited_once_with(
+        server,
         parameters=["10"],
         records=[["1", 1, 215]],
     )
@@ -162,9 +165,12 @@ async def test_async_set_temperature_skips_without_temperature(
         "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=10), server
     )
 
-    await thermostat.async_set_temperature()
+    with patch.object(
+        ws_commands, "send_thermostat_sts", new=AsyncMock()
+    ) as send_thermostat_sts:
+        await thermostat.async_set_temperature()
 
-    server.send_thermostat_sts.assert_not_awaited()
+    send_thermostat_sts.assert_not_awaited()
 
 
 async def test_async_set_preset_mode_dispatches_sts(hass: HomeAssistant) -> None:
@@ -174,9 +180,13 @@ async def test_async_set_preset_mode_dispatches_sts(hass: HomeAssistant) -> None
         "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=11), server
     )
 
-    await thermostat.async_set_preset_mode(PRESET_SCHEDULE)
+    with patch.object(
+        ws_commands, "send_thermostat_sts", new=AsyncMock()
+    ) as send_thermostat_sts:
+        await thermostat.async_set_preset_mode(PRESET_SCHEDULE)
 
-    server.send_thermostat_sts.assert_awaited_once_with(
+    send_thermostat_sts.assert_awaited_once_with(
+        server,
         parameters=["11"],
         records=[["1", 0, 210]],
     )
@@ -189,9 +199,12 @@ async def test_async_set_hvac_mode_off_dispatches_on_off(hass: HomeAssistant) ->
         "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=12), server
     )
 
-    await thermostat.async_set_hvac_mode(HVACMode.OFF)
+    with patch.object(
+        ws_commands, "thermostat_on_off", new=AsyncMock()
+    ) as thermostat_on_off:
+        await thermostat.async_set_hvac_mode(HVACMode.OFF)
 
-    server.thermostat_on_off.assert_awaited_once_with(device_id=12, on_off=0)
+    thermostat_on_off.assert_awaited_once_with(server, device_id=12, on_off=0)
 
 
 async def test_async_set_hvac_mode_heat_from_off_turns_on_then_sts(
@@ -204,13 +217,23 @@ async def test_async_set_hvac_mode_heat_from_off_turns_on_then_sts(
     )
     thermostat._attr_hvac_mode = HVACMode.OFF
 
-    with patch(
-        "custom_components.ave_dominaplus.climate.asyncio.sleep", new=AsyncMock()
+    with (
+        patch.object(
+            ws_commands, "thermostat_on_off", new=AsyncMock()
+        ) as thermostat_on_off,
+        patch.object(
+            ws_commands, "send_thermostat_sts", new=AsyncMock()
+        ) as send_thermostat_sts,
+        patch(
+            "custom_components.ave_dominaplus.climate.asyncio.sleep",
+            new=AsyncMock(),
+        ),
     ):
         await thermostat.async_set_hvac_mode(HVACMode.HEAT)
 
-    server.thermostat_on_off.assert_awaited_once_with(device_id=13, on_off=1)
-    server.send_thermostat_sts.assert_awaited_once_with(
+    thermostat_on_off.assert_awaited_once_with(server, device_id=13, on_off=1)
+    send_thermostat_sts.assert_awaited_once_with(
+        server,
         parameters=["13"],
         records=[[1, 1, 210]],
     )
@@ -223,11 +246,14 @@ async def test_async_turn_on_off_dispatches_on_off(hass: HomeAssistant) -> None:
         "uid", AVE_FAMILY_THERMOSTAT, _props(device_id=14), server
     )
 
-    await thermostat.async_turn_on()
-    await thermostat.async_turn_off()
+    with patch.object(
+        ws_commands, "thermostat_on_off", new=AsyncMock()
+    ) as thermostat_on_off:
+        await thermostat.async_turn_on()
+        await thermostat.async_turn_off()
 
-    server.thermostat_on_off.assert_any_await(device_id=14, on_off=1)
-    server.thermostat_on_off.assert_any_await(device_id=14, on_off=0)
+    thermostat_on_off.assert_any_await(server, device_id=14, on_off=1)
+    thermostat_on_off.assert_any_await(server, device_id=14, on_off=0)
 
 
 def test_set_name_updates_entity_and_syncs_device_name(hass: HomeAssistant) -> None:

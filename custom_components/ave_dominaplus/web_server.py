@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 import aiohttp
 from defusedxml import ElementTree as DefusedET
 
-from . import ws_commands, ws_routing
+from . import ws_routing
 from .ave_map import AveMap
 from .ws_connection_flow import on_connect_actions as ws_on_connect_actions
 
@@ -496,56 +496,6 @@ class AveWebServer:
                     "records": records,
                 },
             )
-
-    async def switch_turn_on(self, device_id: int) -> None:
-        """Turn on the switch."""
-        await ws_commands.switch_turn_on(self, device_id)
-
-    async def switch_turn_off(self, device_id: int) -> None:
-        """Turn off the switch."""
-        await ws_commands.switch_turn_off(self, device_id)
-
-    async def switch_toggle(self, device_id: int) -> None:
-        """Toggle the switch."""
-        await ws_commands.switch_toggle(self, device_id)
-
-    async def scenario_execute(self, device_id: int) -> None:
-        """Execute a scenario."""
-        await ws_commands.scenario_execute(self, device_id)
-
-    async def dimmer_turn_on(self, device_id: int, brightness_ave: int) -> None:
-        """Turn on the dimmer."""
-        await ws_commands.dimmer_turn_on(self, device_id, brightness_ave)
-
-    async def dimmer_turn_off(self, device_id: int) -> None:
-        """Turn off the dimmer."""
-        await ws_commands.dimmer_turn_off(self, device_id)
-
-    async def dimmer_toggle(self, device_id: int) -> None:
-        """Toggle the dimmer."""
-        await ws_commands.dimmer_toggle(self, device_id)
-
-    async def cover_open(self, device_id: int) -> None:
-        """Open the cover."""
-        await ws_commands.cover_open(self, device_id)
-
-    async def cover_close(self, device_id: int) -> None:
-        """Close the cover."""
-        await ws_commands.cover_close(self, device_id)
-
-    async def cover_stop(self, device_id: int, command: str) -> None:
-        """Stop the cover according to AVE movement direction command."""
-        await ws_commands.cover_stop(self, device_id, command)
-
-    async def send_thermostat_sts(
-        self, parameters: list[Any], records: list[list[Any]]
-    ) -> None:
-        """Send a command to update the thermostat season/temperatures."""
-        await ws_commands.send_thermostat_sts(self, parameters, records)
-
-    async def thermostat_on_off(self, device_id: int, on_off: int) -> None:
-        """Turn the thermostat on or off."""
-        await ws_commands.thermostat_on_off(self, device_id, on_off)
 
     async def call_bridge(self, command: str) -> tuple[int, str | None]:
         """Call a xml "rest" bridge for common commands."""
