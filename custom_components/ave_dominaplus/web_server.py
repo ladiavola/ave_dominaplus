@@ -10,22 +10,26 @@ from typing import TYPE_CHECKING, Any
 import aiohttp
 from defusedxml import ElementTree as DefusedET
 
+from custom_components.ave_dominaplus.webserver.routing import (
+    manage_gsf as route_manage_gsf,
+    manage_ldi_li2 as route_manage_ldi_li2,
+    manage_lm as route_manage_lm,
+    manage_lmc as route_manage_lmc,
+    manage_upd as route_manage_upd,
+    manage_upd_ws as route_manage_upd_ws,
+    manage_wts as route_manage_wts,
+)
+
 from .ave_map import AveMap
 from .ave_thermostat import AveThermostatProperties
 from .const import (
-    AVE_FAMILY_ANTITHEFT,
     AVE_FAMILY_ANTITHEFT_AREA,
-    AVE_FAMILY_CAMERA,
     AVE_FAMILY_DIMMER,
-    AVE_FAMILY_KEYPAD,
-    AVE_FAMILY_MOTION_SENSOR,
     AVE_FAMILY_ONOFFLIGHTS,
     AVE_FAMILY_SCENARIO,
     AVE_FAMILY_SHUTTER_HUNG,
     AVE_FAMILY_SHUTTER_ROLLING,
     AVE_FAMILY_SHUTTER_SLIDING,
-    AVE_FAMILY_THERMOSTAT,
-    AVE_UNHANDLED_UPD,
 )
 
 if TYPE_CHECKING:
@@ -609,416 +613,40 @@ class AveWebServer:
 
     def manage_upd(self, parameters, records) -> None:
         """Manage UPD commands received from the web server."""
-        _LOGGER.debug(
-            "Received UPD command. Parameters: %s | Records: %s",
-            parameters,
-            records,
-        )
-        if parameters[0] == "WS":
-            device_type, device_id, device_status = (
-                int(parameters[1]),
-                int(parameters[2]),
-                int(parameters[3]),
-            )
-            self.manage_upd_ws(device_type, device_id, device_status)
-        elif parameters[0] == "X" and parameters[1] == "A":  # ANTITHEFT AREA
-            if not self.settings.fetch_sensor_areas:
-                return
-
-            """parameters[2] is the area ID.
-            all other parameters are == 0 when triggered,
-            parameters[6] == 1 when cleared"""
-
-            area_progressive = int(parameters[2])
-            # area_engaged = int(parameters[3])
-            # area_in_alarm = int(parameters[5])
-            area_clear = int(parameters[6])
-            status = 1
-            if area_clear > 0:
-                status = 0
-            self.update_binary_sensor(
-                self, AVE_FAMILY_ANTITHEFT_AREA, area_progressive, status
-            )
-            # f"XA - areaID: {area_progressive}
-            # - engaged: {area_engaged}
-            # - clear: {area_clear}
-            # - alarm: {area_in_alarm}")
-        elif parameters[0] == "X" and parameters[1] == "S":  # ANTITHEFT SENSOR
-            if not self.settings.fetch_sensors:
-                return
-            self.update_binary_sensor(
-                self, AVE_FAMILY_MOTION_SENSOR, int(parameters[2]), int(parameters[4])
-            )
-        elif parameters[0] == "X" and parameters[1] == "U":
-            # ANTITHEFT UNIT (requires SU2)
-            _LOGGER.debug("XU Antitheft Unit - engaged", extra={"id": parameters[2]})
-        elif parameters[0] == "WT":
-            # Serveral updates for thermostats, using Device ID as identifier
-            if parameters[1] == "O":
-                self.update_thermostat(
-                    server=self,
-                    parameters=parameters,
-                    records=records,
-                    command=None,
-                    properties=None,
-                    ave_device_id=None,
-                )
-                self.update_th_offset(
-                    server=self,
-                    family=AVE_FAMILY_THERMOSTAT,
-                    ave_device_id=int(parameters[2]),
-                    offset_value=int(parameters[3]) / 10,
-                )
-        elif parameters[0] in ["TM", "TW", "TP"]:
-            # Thermostats update with device ID as identifier
-            self.update_thermostat(
-                server=self,
-                parameters=parameters,
-                records=records,
-                command=None,
-                properties=None,
-                ave_device_id=None,
-            )
-        elif parameters[0] in ["TT", "TR", "TL", "TLO", "TO", "TS"]:
-            # THERMOSTAT updates with command ID as identifier
-            if (
-                not self.ave_map
-                or not self.ave_map.areas_loaded
-                or not self.ave_map.command_loaded
-            ):
-                _LOGGER.debug("Received th update before map/commands loaded; skipping")
-                return
-            _command = self.ave_map.get_command_by_id_and_family(
-                int(parameters[1]), AVE_FAMILY_THERMOSTAT
-            )
-            if not _command:
-                _LOGGER.debug(
-                    "Received th update for unknown command ID %s; skipping",
-                    parameters[1],
-                )
-                return
-            self.update_thermostat(
-                server=self,
-                parameters=parameters,
-                records=records,
-                command=_command,
-                properties=None,
-                ave_device_id=None,
-            )
-        elif parameters[0] in AVE_UNHANDLED_UPD:
-            pass
-        else:
-            _LOGGER.debug(
-                "Received not unknown UPD %s",
-                parameters[0],
-                extra={"parameters": parameters},
-            )
+        route_manage_upd(self, parameters, records)
 
     def manage_upd_ws(
         self, device_type: int, device_id: int, device_status: int
     ) -> None:
         """Manage UPD WS (status update) commands based on device type."""
-        if device_id > 200000:
-            # Devices with ID > 2000000 must be scenarios or something...
-            return
-        if device_type == AVE_FAMILY_ONOFFLIGHTS and self.settings.fetch_lights:
-            if self.settings.on_off_lights_as_switch:
-                self.update_switch(self, device_type, device_id, device_status, None)
-            else:
-                self.update_light(self, device_type, device_id, device_status, None)
-        elif device_type == AVE_FAMILY_DIMMER and self.settings.fetch_lights:
-            self.update_light(self, device_type, device_id, device_status, None)
-        elif (
-            device_type
-            in (
-                AVE_FAMILY_SHUTTER_ROLLING,
-                AVE_FAMILY_SHUTTER_SLIDING,
-                AVE_FAMILY_SHUTTER_HUNG,
-            )
-            and self.settings.fetch_covers
-        ):
-            self.update_cover(self, device_type, device_id, device_status, None)
-        elif device_type == AVE_FAMILY_SCENARIO and self.settings.fetch_scenarios:
-            self.update_binary_sensor(
-                self, AVE_FAMILY_SCENARIO, device_id, device_status, None
-            )
-        # elif device_type in [12, 13]:
-        #     _LOGGER.debug(
-        #         "Received async Antitheft status update. "
-        #         "Device ID: %s, Device Type: %s, Status: %s",
-        #         device_id,
-        #         device_type,
-        #         device_status,
-        #     )
+        route_manage_upd_ws(self, device_type, device_id, device_status)
 
     def manage_gsf(self, parameters: list[Any], records: list[list[Any]]) -> None:
         """Manage GSF Get Status by Family responses."""
-        _LOGGER.debug(
-            "Received GSF (Get status by family) response for family %s, parameters: %s | records: %s",
-            parameters[0],
-            parameters,
-            records,
-        )
-        if parameters[0] in [
-            str(AVE_FAMILY_ANTITHEFT),
-            str(AVE_FAMILY_ANTITHEFT_AREA),
-        ]:  # Motion detection types
-            for record in records:
-                device_id, device_status = int(record[0]), int(record[1])
-                self.update_binary_sensor(
-                    self, int(parameters[0]), device_id, device_status
-                )
-
-        if parameters[0] == str(AVE_FAMILY_ONOFFLIGHTS):
-            for record in records:
-                device_id, device_status = int(record[0]), int(record[1])
-                if self.settings.on_off_lights_as_switch:
-                    self.update_switch(
-                        self, AVE_FAMILY_ONOFFLIGHTS, device_id, device_status, None
-                    )
-                else:
-                    self.update_light(
-                        self, AVE_FAMILY_ONOFFLIGHTS, device_id, device_status, None
-                    )
-                # send_mqtt_message(device_id, device_status)
-
-        if parameters[0] == str(AVE_FAMILY_DIMMER):
-            for record in records:
-                device_id, device_status = int(record[0]), int(record[1])
-                if self.update_light is not None:
-                    self.update_light(
-                        self, AVE_FAMILY_DIMMER, device_id, device_status, None
-                    )
-
-        if parameters[0] in [
-            str(AVE_FAMILY_SHUTTER_ROLLING),
-            str(AVE_FAMILY_SHUTTER_SLIDING),
-            str(AVE_FAMILY_SHUTTER_HUNG),
-        ]:
-            for record in records:
-                device_id, device_status = int(record[0]), int(record[1])
-                if self.update_cover is not None:
-                    self.update_cover(
-                        self,
-                        int(parameters[0]),
-                        device_id,
-                        device_status,
-                        None,
-                    )
-
-        if parameters[0] == str(AVE_FAMILY_SCENARIO):
-            for record in records:
-                device_id, device_status = int(record[0]), int(record[1])
-                if self.update_binary_sensor is not None:
-                    self.update_binary_sensor(
-                        self,
-                        AVE_FAMILY_SCENARIO,
-                        device_id,
-                        device_status,
-                        None,
-                    )
+        route_manage_gsf(self, parameters, records)
 
     def manage_ldi_li2(
         self, parameters: list[Any], records: list[list[Any]], command: str
     ) -> None:
         """Manage LDI/LI2 List Devices commands received from the web server."""
-        _LOGGER.debug(
-            "Parsing %s (List Devices) command, parameters: %s | records: %s",
-            command,
-            parameters,
-            records,
-        )
-        self.raw_ldi = []
-        for record in records:
-            try:
-                device_id, device_name, device_type, address = (
-                    int(record[0]),
-                    str(record[1]),
-                    int(record[2]),
-                    record[3],
-                )
-                # record[3] contains the decimal representation of the address
-                address_dec = None
-                address_hex = None
-                if command == "li2":
-                    try:
-                        address_dec = int(str(address).strip())
-                    except Exception:
-                        _LOGGER.debug(
-                            "Failed parsing address '%s'; leaving address_dec unset",
-                            address,
-                        )
-                        address_dec = None
-                    # Store address as two-digit uppercase hex string when available
-                    address_hex = (
-                        format(address_dec & 0xFF, "02X")
-                        if address_dec is not None
-                        else ""
-                    )
-                self.raw_ldi.append(
-                    {
-                        "device_id": device_id,
-                        "device_name": device_name,
-                        "device_type": device_type,
-                        "address_dec": address_dec,
-                        "address_hex": address_hex,
-                    }
-                )
-                if device_name and device_name[0] == "$":
-                    # RGBW, unhandled
-                    continue
-                if device_name and device_name[-1] == "$":
-                    # DALI, unhandled
-                    continue
-                if device_type == AVE_FAMILY_ANTITHEFT_AREA:
-                    # Antitheft area
-                    self.update_binary_sensor(
-                        self, AVE_FAMILY_ANTITHEFT_AREA, device_id, -1, device_name
-                    )
-                elif device_type == AVE_FAMILY_KEYPAD:
-                    # Keypad
-                    pass
-                elif device_type == AVE_FAMILY_ONOFFLIGHTS:
-                    if self.settings.on_off_lights_as_switch:
-                        self.update_switch(
-                            self,
-                            AVE_FAMILY_ONOFFLIGHTS,
-                            device_id,
-                            -1,
-                            device_name,
-                            address_dec,
-                        )
-                    else:
-                        self.update_light(
-                            self,
-                            AVE_FAMILY_ONOFFLIGHTS,
-                            device_id,
-                            -1,
-                            device_name,
-                            address_dec,
-                        )
-                    # Light
-                elif device_type == AVE_FAMILY_DIMMER:
-                    self.update_light(
-                        self,
-                        AVE_FAMILY_DIMMER,
-                        device_id,
-                        -1,
-                        device_name,
-                        address_dec,
-                    )
-                    # Dimmer light
-                elif device_type in (
-                    AVE_FAMILY_SHUTTER_ROLLING,
-                    AVE_FAMILY_SHUTTER_SLIDING,
-                    AVE_FAMILY_SHUTTER_HUNG,
-                ):
-                    self.update_cover(
-                        self,
-                        device_type,
-                        device_id,
-                        -1,
-                        device_name,
-                        address_dec,
-                    )
-                elif device_type == AVE_FAMILY_THERMOSTAT:
-                    # All thermostats
-                    self.all_thermostats_raw[device_id] = {
-                        "device_name": device_name,
-                        "address_dec": address_dec,
-                        "address_hex": address_hex,
-                    }
-                elif device_type == AVE_FAMILY_SCENARIO:
-                    # Scenario
-                    if self.settings.fetch_scenarios:
-                        if self.update_button is not None:
-                            self.update_button(
-                                self,
-                                AVE_FAMILY_SCENARIO,
-                                device_id,
-                                device_name,
-                                address_dec,
-                            )
-                        if self.update_binary_sensor is not None:
-                            self.update_binary_sensor(
-                                self,
-                                AVE_FAMILY_SCENARIO,
-                                device_id,
-                                -1,
-                                device_name,
-                            )
-                elif device_type == AVE_FAMILY_CAMERA:
-                    # Camera
-                    pass
-                else:
-                    _LOGGER.debug(
-                        "Unknown device type %s for %s, skipping",
-                        device_type,
-                        device_name,
-                    )
-                    continue
-            except Exception:
-                _LOGGER.exception("Error parsing device record: %s", record)
-        self._ldi_done.set()
+        route_manage_ldi_li2(self, parameters, records, command)
 
     def manage_lm(self, parameters, records) -> None:
         """Manage LM List Map commands received from the web server."""
-        _LOGGER.debug(
-            "Parsing LM (List Map) command, parameters: %s | records: %s",
-            parameters,
-            records,
-        )
-        self.ave_map.load_areas_from_wsrecords(records)
-        self.ave_map.areas_loaded = True
-        self._thermostat_lm_done.set()
+        route_manage_lm(self, parameters, records)
 
     def manage_lmc(self, parameters, records) -> None:
         """Manage LMC List Map Commands responses."""
-        _LOGGER.debug(
-            "Parsing LMC response, parameters: %s | records: %s",
-            parameters,
-            records,
-        )
-        area_id = int(parameters[0])
-        self.ave_map.load_area_commands(area_id, records)
-        if self.ave_map.command_loaded:
-            self._thermostat_lmc_done.set()
+        route_manage_lmc(self, parameters, records)
 
     def manage_wts(self, parameters: list[Any], records: list[list[Any]]) -> None:
         """Manage WTS command responses."""
-        _LOGGER.debug(
-            "Parsing WTS response, parameters: %s | records: %s",
+        route_manage_wts(
+            self,
             parameters,
             records,
+            thermostat_properties_factory=AveThermostatProperties,
         )
-        device_id = int(parameters[0])
-        thermostat_properties = AveThermostatProperties.from_wts(parameters, records)
-        thermostat_properties.device_name = (
-            f"thermostat_{thermostat_properties.device_id}"
-        )
-        if self.settings.get_entity_names:
-            thermostat_properties.device_name = self.all_thermostats_raw[device_id][
-                "device_name"
-            ]
-
-        self.update_thermostat(
-            server=self,
-            parameters=parameters,
-            records=records,
-            command=None,
-            properties=thermostat_properties,
-            ave_device_id=device_id,
-            address_dec=self.all_thermostats_raw[device_id].get("address_dec"),
-        )
-        if thermostat_properties.offset is not None:
-            self.update_th_offset(
-                server=self,
-                family=AVE_FAMILY_THERMOSTAT,
-                ave_device_id=device_id,
-                offset_value=thermostat_properties.offset,
-                name=thermostat_properties.device_name,
-                address_dec=self.all_thermostats_raw[device_id].get("address_dec"),
-            )
 
     async def switch_turn_on(self, device_id: int) -> None:
         """Turn on the switch."""
