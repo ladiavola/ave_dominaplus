@@ -10,6 +10,20 @@ from typing import TYPE_CHECKING, Any
 import aiohttp
 from defusedxml import ElementTree as DefusedET
 
+from custom_components.ave_dominaplus.webserver.commands import (
+    cover_close as route_cover_close,
+    cover_open as route_cover_open,
+    cover_stop as route_cover_stop,
+    dimmer_toggle as route_dimmer_toggle,
+    dimmer_turn_off as route_dimmer_turn_off,
+    dimmer_turn_on as route_dimmer_turn_on,
+    scenario_execute as route_scenario_execute,
+    send_thermostat_sts as route_send_thermostat_sts,
+    switch_toggle as route_switch_toggle,
+    switch_turn_off as route_switch_turn_off,
+    switch_turn_on as route_switch_turn_on,
+    thermostat_on_off as route_thermostat_on_off,
+)
 from custom_components.ave_dominaplus.webserver.routing import (
     manage_gsf as route_manage_gsf,
     manage_ldi_li2 as route_manage_ldi_li2,
@@ -650,95 +664,53 @@ class AveWebServer:
 
     async def switch_turn_on(self, device_id: int) -> None:
         """Turn on the switch."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "11"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_switch_turn_on(self, device_id)
 
     async def switch_turn_off(self, device_id: int) -> None:
         """Turn off the switch."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "12"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_switch_turn_off(self, device_id)
 
     async def switch_toggle(self, device_id: int) -> None:
         """Toggle the switch."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "10"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_switch_toggle(self, device_id)
 
     async def scenario_execute(self, device_id: int) -> None:
         """Execute a scenario."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("ESI", [str(device_id), "0"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_scenario_execute(self, device_id)
 
     async def dimmer_turn_on(self, device_id: int, brightness_ave: int) -> None:
         """Turn on the dimmer."""
-        clamped_level = max(0, min(31, int(brightness_ave)))
-        if clamped_level == 0:
-            await self.dimmer_turn_off(device_id)
-            return
-
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "3"])
-            await self.send_ws_command("SIL", [str(device_id)], [[clamped_level]])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_dimmer_turn_on(self, device_id, brightness_ave)
 
     async def dimmer_turn_off(self, device_id: int) -> None:
         """Turn off the dimmer."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "4"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_dimmer_turn_off(self, device_id)
 
     async def dimmer_toggle(self, device_id: int) -> None:
         """Toggle the dimmer."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "2"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_dimmer_toggle(self, device_id)
 
     async def cover_open(self, device_id: int) -> None:
         """Open the cover."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EAI", [str(device_id), "8"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_cover_open(self, device_id)
 
     async def cover_close(self, device_id: int) -> None:
         """Close the cover."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EAI", [str(device_id), "9"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_cover_close(self, device_id)
 
     async def cover_stop(self, device_id: int, command: str) -> None:
         """Stop the cover according to AVE movement direction command."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EAI", [str(device_id), command])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_cover_stop(self, device_id, command)
 
     async def send_thermostat_sts(
         self, parameters: list[Any], records: list[list[Any]]
     ) -> None:
         """Send a command to update the thermostat season/temperatures."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("STS", parameters, records)
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_send_thermostat_sts(self, parameters, records)
 
     async def thermostat_on_off(self, device_id: int, on_off: int) -> None:
         """Turn the thermostat on or off."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("TOO", [str(device_id), str(on_off)])
-        else:
-            _LOGGER.error("WebSocket is not connected")
+        await route_thermostat_on_off(self, device_id, on_off)
 
     async def call_bridge(self, command: str) -> tuple[int, str | None]:
         """Call a xml "rest" bridge for common commands."""
