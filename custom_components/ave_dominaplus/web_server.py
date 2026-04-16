@@ -13,6 +13,7 @@ from defusedxml import ElementTree as DefusedET
 from . import ws_routing
 from .ave_map import AveMap
 from .ws_connection_flow import on_connect_actions as ws_on_connect_actions
+from .ws_settings import AveWebServerSettings
 
 if TYPE_CHECKING:
     from types import MappingProxyType
@@ -20,31 +21,6 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class AveWebServerSettings:
-    """AVE web server settings class."""
-
-    host: str
-    get_entity_names: bool
-    fetch_sensor_areas: bool
-    fetch_sensors: bool
-    fetch_lights: bool
-    fetch_covers: bool
-    fetch_scenarios: bool
-    fetch_thermostats: bool
-
-    def __init__(self) -> None:
-        """Initialize the settings."""
-        self.host = ""
-        self.get_entity_names = False
-        self.fetch_sensor_areas = False
-        self.fetch_sensors = False
-        self.fetch_lights = False
-        self.fetch_covers = False
-        self.fetch_scenarios = True
-        self.fetch_thermostats = False
-        self.on_off_lights_as_switch = True
 
 
 class AveWebServer:
@@ -58,17 +34,8 @@ class AveWebServer:
         """Initialize."""
         self.settings = AveWebServerSettings()
         try:
-            self.settings = AveWebServerSettings()
-            self.settings.host = settings_data["ip_address"]
-            self.settings.get_entity_names = settings_data["get_entities_names"]
-            self.settings.fetch_sensor_areas = settings_data["fetch_sensor_areas"]
-            self.settings.fetch_sensors = settings_data["fetch_sensors"]
-            self.settings.fetch_lights = settings_data["fetch_lights"]
-            self.settings.fetch_covers = settings_data.get("fetch_covers", True)
-            self.settings.fetch_scenarios = settings_data.get("fetch_scenarios", True)
-            self.settings.fetch_thermostats = settings_data["fetch_thermostats"]
-            self.settings.on_off_lights_as_switch = settings_data.get(
-                "on_off_lights_as_switch", True
+            self.settings = AveWebServerSettings.from_config_entry_options(
+                settings_data
             )
         except KeyError:
             _LOGGER.exception("Missing key in settings data")

@@ -73,7 +73,7 @@ def test_init_with_missing_keys_keeps_defaults(hass: HomeAssistant) -> None:
     server = AveWebServer({"ip_address": "192.168.1.10"}, hass)
 
     assert server.settings.host == "192.168.1.10"
-    assert server.settings.fetch_lights is False
+    assert server.settings.fetch_lights is True
 
 
 async def test_setter_helpers_assign_callbacks_and_keep_first_adders(
