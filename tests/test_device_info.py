@@ -11,14 +11,17 @@ from custom_components.ave_dominaplus.const import (
     AVE_FAMILY_MOTION_SENSOR,
     AVE_FAMILY_ONOFFLIGHTS,
     AVE_FAMILY_SCENARIO,
+    AVE_FAMILY_SHUTTER_ROLLING,
     AVE_FAMILY_THERMOSTAT,
     DOMAIN,
 )
 from custom_components.ave_dominaplus.device_info import (
     build_endpoint_device_info,
     build_hub_device_info,
+    ensure_covers_parent_device,
     ensure_lighting_parent_device,
     ensure_scenarios_parent_device,
+    ensure_thermostats_parent_device,
     sync_device_registry_name,
 )
 from custom_components.ave_dominaplus.web_server import AveWebServer
@@ -158,6 +161,46 @@ def test_ensure_scenarios_parent_device_registers_under_hub(hass) -> None:
     )
 
 
+def test_ensure_covers_parent_device_registers_under_hub(hass) -> None:
+    """Ensure helper creates shared covers parent device linked to hub."""
+    server = _server_stub(mac="AA:BB:CC:DD:EE:FF", host="10.0.0.99")
+    server.hass = hass
+
+    with patch("custom_components.ave_dominaplus.device_info.dr.async_get") as get_reg:
+        registry = get_reg.return_value
+        ensure_covers_parent_device(cast(AveWebServer, server), "entry-123")
+
+    registry.async_get_or_create.assert_called_once_with(
+        config_entry_id="entry-123",
+        identifiers={(DOMAIN, "endpoint_aa:bb:cc:dd:ee:ff_covers")},
+        manufacturer="AVE",
+        model="AVE dominaplus covers",
+        name="Dominaplus Covers",
+        via_device=(DOMAIN, "hub_aa:bb:cc:dd:ee:ff"),
+        configuration_url="http://10.0.0.99",
+    )
+
+
+def test_ensure_thermostats_parent_device_registers_under_hub(hass) -> None:
+    """Ensure helper creates shared thermostats parent device linked to hub."""
+    server = _server_stub(mac="AA:BB:CC:DD:EE:FF", host="10.0.0.99")
+    server.hass = hass
+
+    with patch("custom_components.ave_dominaplus.device_info.dr.async_get") as get_reg:
+        registry = get_reg.return_value
+        ensure_thermostats_parent_device(cast(AveWebServer, server), "entry-123")
+
+    registry.async_get_or_create.assert_called_once_with(
+        config_entry_id="entry-123",
+        identifiers={(DOMAIN, "endpoint_aa:bb:cc:dd:ee:ff_thermostats")},
+        manufacturer="AVE",
+        model="AVE dominaplus thermostats",
+        name="Dominaplus Thermostats",
+        via_device=(DOMAIN, "hub_aa:bb:cc:dd:ee:ff"),
+        configuration_url="http://10.0.0.99",
+    )
+
+
 def test_sync_device_registry_name_updates_name_and_via() -> None:
     """Shared sync helper should update device name and parent linkage."""
     hass = object()
@@ -248,8 +291,23 @@ def test_endpoint_device_info_uses_entry_fallback_identifier() -> None:
     )
 
     assert info.get("identifiers") == {(DOMAIN, "endpoint_entry-123_thermostat_7")}
-    assert info.get("via_device") == (DOMAIN, "hub_entry-123")
+    assert info.get("via_device") == (DOMAIN, "endpoint_entry-123_thermostats")
     assert info.get("name") == "Thermostat 7"
+
+
+def test_endpoint_cover_uses_per_device_identifier_and_parent() -> None:
+    """Cover endpoints should be grouped under a shared covers parent."""
+    server = _server_stub(config_entry_id="entry-123")
+
+    info = build_endpoint_device_info(
+        cast(AveWebServer, server),
+        family=AVE_FAMILY_SHUTTER_ROLLING,
+        ave_device_id=14,
+    )
+
+    assert info.get("identifiers") == {(DOMAIN, "endpoint_entry-123_cover_3_14")}
+    assert info.get("via_device") == (DOMAIN, "endpoint_entry-123_covers")
+    assert info.get("name") == "Shutter 14"
 
 
 def test_endpoint_thermostat_name_is_cleaned_for_offset_suffix() -> None:

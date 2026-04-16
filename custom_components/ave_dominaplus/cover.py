@@ -19,7 +19,11 @@ from .const import (
     AVE_FAMILY_SHUTTER_ROLLING,
     AVE_FAMILY_SHUTTER_SLIDING,
 )
-from .device_info import build_endpoint_device_info
+from .device_info import (
+    build_endpoint_device_info,
+    ensure_covers_parent_device,
+    sync_device_registry_name,
+)
 from .uid_v2 import build_uid, find_unique_id, parse_uid
 from .web_server import AveWebServer
 
@@ -49,6 +53,8 @@ async def async_setup_entry(
     await webserver.set_update_cover(update_cover)
     if not webserver.settings.fetch_covers:
         return
+
+    ensure_covers_parent_device(webserver, entry.entry_id)
 
     await adopt_existing_covers(webserver, entry)
 
@@ -262,7 +268,10 @@ class AveCover(CoverEntity):
         self._address_dec = address_dec
         self._pending_state_write = False
         self._attr_device_info = build_endpoint_device_info(
-            webserver, family, ave_device_id
+            webserver,
+            family,
+            ave_device_id,
+            ave_name=ave_name,
         )
 
         self._attr_device_class = CoverDeviceClass.SHUTTER
@@ -280,6 +289,7 @@ class AveCover(CoverEntity):
         """Handle entity added to Home Assistant."""
         await super().async_added_to_hass()
         self._webserver.register_availability_entity(self)
+        self._sync_device_info()
         if self._pending_state_write:
             self._pending_state_write = False
             self.async_write_ha_state()
@@ -407,13 +417,37 @@ class AveCover(CoverEntity):
         if name is None:
             return
         self._name = name
+        self._sync_device_info(name)
         self._write_state_or_defer()
 
     def set_ave_name(self, name: str | None) -> None:
         """Set AVE native name."""
         if name is not None:
             self._ave_name = name
+            self._sync_device_info(name)
             self._write_state_or_defer()
+
+    def _sync_device_info(self, ave_name: str | None = None) -> None:
+        """Sync device registry metadata for this cover endpoint."""
+        if self.hass is None:
+            return
+
+        updated_device_info = build_endpoint_device_info(
+            self._webserver,
+            self.family,
+            self.ave_device_id,
+            ave_name=ave_name if ave_name is not None else self._ave_name,
+        )
+        identifiers = self._attr_device_info.get("identifiers")
+        if not identifiers:
+            return
+
+        sync_device_registry_name(
+            self.hass,
+            updated_device_info,
+            identifiers=identifiers,
+        )
+        self._attr_device_info = updated_device_info
 
     def set_address_dec(self, address_dec: int | None) -> None:
         """Set the AVE decimal address."""

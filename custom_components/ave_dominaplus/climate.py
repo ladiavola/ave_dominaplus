@@ -24,7 +24,11 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .ave_map import AveMapCommand
 from .ave_thermostat import AveThermostatProperties
 from .const import AVE_FAMILY_THERMOSTAT
-from .device_info import build_endpoint_device_info, sync_device_registry_name
+from .device_info import (
+    build_endpoint_device_info,
+    ensure_thermostats_parent_device,
+    sync_device_registry_name,
+)
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,6 +59,9 @@ async def async_setup_entry(
 
     await webserver.set_async_add_th_entities(async_add_entities)
     await webserver.set_update_thermostat(update_thermostat)
+
+    ensure_thermostats_parent_device(webserver, entry.entry_id)
+
     await adopt_existing_sensors(webserver, entry)
     if not webserver.settings.fetch_thermostats:
         return

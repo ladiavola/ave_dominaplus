@@ -62,14 +62,20 @@ async def test_async_setup_entry_registers_callbacks_and_adopts(hass) -> None:
     server.set_async_add_th_entities = AsyncMock()
     server.set_update_thermostat = AsyncMock()
 
-    with patch(
-        "custom_components.ave_dominaplus.climate.adopt_existing_sensors",
-        new=AsyncMock(),
-    ) as adopt_mock:
+    with (
+        patch(
+            "custom_components.ave_dominaplus.climate.adopt_existing_sensors",
+            new=AsyncMock(),
+        ) as adopt_mock,
+        patch(
+            "custom_components.ave_dominaplus.climate.ensure_thermostats_parent_device"
+        ) as ensure_parent,
+    ):
         await async_setup_entry(hass, _entry(server), Mock())
 
     server.set_async_add_th_entities.assert_awaited_once()
     server.set_update_thermostat.assert_awaited_once()
+    ensure_parent.assert_called_once_with(server, "entry-1")
     adopt_mock.assert_awaited_once()
 
 
@@ -195,7 +201,9 @@ async def test_thermostat_entity_edge_paths_and_lifecycle(hass) -> None:
     thermostat = AveThermostat(
         unique_id="uid",
         family=AVE_FAMILY_THERMOSTAT,
-        ave_properties=_props(device_id=9, name=None, fan_level=3, season="0", mode="A"),
+        ave_properties=_props(
+            device_id=9, name=None, fan_level=3, season="0", mode="A"
+        ),
         webserver=server,
         name=None,
     )
@@ -218,7 +226,9 @@ async def test_thermostat_entity_edge_paths_and_lifecycle(hass) -> None:
         await thermostat.async_added_to_hass()
         await thermostat.async_will_remove_from_hass()
 
-    thermostat.update_from_wts(["9"], [["resp", "3", "cfg", "0", "1", "210", "M", "215", "0", "0"]])
+    thermostat.update_from_wts(
+        ["9"], [["resp", "3", "cfg", "0", "1", "210", "M", "215", "0", "0"]]
+    )
     thermostat.update_specific_property("window_state", "open")
     thermostat.update_specific_property("season", "1")
     thermostat.update_specific_property("mode", "A")
@@ -248,14 +258,24 @@ async def test_thermostat_entity_edge_paths_and_lifecycle(hass) -> None:
 
     registry = Mock()
     registry.async_get_device.return_value = None
-    with patch("custom_components.ave_dominaplus.climate.dr.async_get", return_value=registry):
+    with patch(
+        "custom_components.ave_dominaplus.climate.dr.async_get", return_value=registry
+    ):
         thermostat._sync_device_name("NoDevice")
 
-    registry.async_get_device.return_value = SimpleNamespace(id="dev", name_by_user=None, name="Old")
-    with patch(
-        "custom_components.ave_dominaplus.climate.build_endpoint_device_info",
-        return_value={"identifiers": {("ave", "id")}, "name": "Resolved"},
-    ), patch("custom_components.ave_dominaplus.climate.dr.async_get", return_value=registry):
+    registry.async_get_device.return_value = SimpleNamespace(
+        id="dev", name_by_user=None, name="Old"
+    )
+    with (
+        patch(
+            "custom_components.ave_dominaplus.climate.build_endpoint_device_info",
+            return_value={"identifiers": {("ave", "id")}, "name": "Resolved"},
+        ),
+        patch(
+            "custom_components.ave_dominaplus.climate.dr.async_get",
+            return_value=registry,
+        ),
+    ):
         thermostat._sync_device_name("Resolved")
 
     thermostat.set_ave_name(None)

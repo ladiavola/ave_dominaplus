@@ -61,12 +61,18 @@ async def test_async_setup_entry_calls_adoption_when_fetch_enabled(hass) -> None
     server.set_async_add_cv_entities = AsyncMock()
     server.set_update_cover = AsyncMock()
 
-    with patch(
-        "custom_components.ave_dominaplus.cover.adopt_existing_covers",
-        new=AsyncMock(),
-    ) as adopt_mock:
+    with (
+        patch(
+            "custom_components.ave_dominaplus.cover.adopt_existing_covers",
+            new=AsyncMock(),
+        ) as adopt_mock,
+        patch(
+            "custom_components.ave_dominaplus.cover.ensure_covers_parent_device"
+        ) as ensure_parent,
+    ):
         await async_setup_entry(hass, _entry(server), Mock())
 
+    ensure_parent.assert_called_once_with(server, "entry-1")
     adopt_mock.assert_awaited_once()
 
 

@@ -26,6 +26,7 @@ from .web_server import AveWebServer
 
 _GROUP_LIGHTING = "lighting"
 _GROUP_COVERS = "covers"
+_GROUP_THERMOSTATS = "thermostats"
 _GROUP_ANTITHEFT_SENSORS = "antitheft_sensors"
 _GROUP_ANTITHEFT_AREAS = "antitheft_areas"
 _GROUP_SCENARIOS = "scenarios"
@@ -44,6 +45,7 @@ _FAMILY_TO_GROUP: dict[int, str] = {
 _GROUP_MODELS: dict[str, str] = {
     _GROUP_LIGHTING: "AVE dominaplus lighting",
     _GROUP_COVERS: "AVE dominaplus covers",
+    _GROUP_THERMOSTATS: "AVE dominaplus thermostats",
     _GROUP_ANTITHEFT_SENSORS: "AVE dominaplus antitheft sensors",
     _GROUP_ANTITHEFT_AREAS: "AVE dominaplus antitheft areas",
     _GROUP_SCENARIOS: "AVE dominaplus scenarios",
@@ -52,6 +54,7 @@ _GROUP_MODELS: dict[str, str] = {
 _GROUP_NAMES: dict[str, str] = {
     _GROUP_LIGHTING: "Dominaplus Lighting",
     _GROUP_COVERS: "Dominaplus Covers",
+    _GROUP_THERMOSTATS: "Dominaplus Thermostats",
     _GROUP_ANTITHEFT_SENSORS: "Dominaplus Antitheft Sensors",
     _GROUP_ANTITHEFT_AREAS: "Dominaplus Antitheft Areas",
     _GROUP_SCENARIOS: "Dominaplus Scenarios",
@@ -60,6 +63,7 @@ _GROUP_NAMES: dict[str, str] = {
 _PROTECTED_DEVICE_SUFFIXES = (
     f"_{_GROUP_LIGHTING}",
     f"_{_GROUP_COVERS}",
+    f"_{_GROUP_THERMOSTATS}",
     f"_{_GROUP_ANTITHEFT_SENSORS}",
     f"_{_GROUP_ANTITHEFT_AREAS}",
     f"_{_GROUP_SCENARIOS}",
@@ -108,13 +112,19 @@ def _endpoint_group_key(family: int, ave_device_id: int) -> str:
     """Return stable grouping key for endpoint devices under the hub."""
     if family in (AVE_FAMILY_ONOFFLIGHTS, AVE_FAMILY_DIMMER):
         return f"light_{family}_{ave_device_id}"
+    if family in (
+        AVE_FAMILY_SHUTTER_ROLLING,
+        AVE_FAMILY_SHUTTER_SLIDING,
+        AVE_FAMILY_SHUTTER_HUNG,
+    ):
+        return f"cover_{family}_{ave_device_id}"
+    if family == AVE_FAMILY_THERMOSTAT:
+        return f"thermostat_{ave_device_id}"
     if family == AVE_FAMILY_SCENARIO:
         return f"scenario_{ave_device_id}"
     group = _FAMILY_TO_GROUP.get(family)
     if group:
         return group
-    if family == AVE_FAMILY_THERMOSTAT:
-        return f"thermostat_{ave_device_id}"
     return f"family_{family}_{ave_device_id}"
 
 
@@ -158,10 +168,30 @@ def _lighting_device_name(family: int, ave_device_id: int, ave_name: str | None)
     return f"Dimmer {ave_device_id}"
 
 
+def _cover_device_name(family: int, ave_device_id: int, ave_name: str | None) -> str:
+    """Build cover endpoint device name from AVE name or fallback id."""
+    clean_name = _clean_ave_device_name(ave_name)
+    if clean_name:
+        return clean_name
+    if family == AVE_FAMILY_SHUTTER_ROLLING:
+        return f"Shutter {ave_device_id}"
+    if family == AVE_FAMILY_SHUTTER_SLIDING:
+        return f"Blind {ave_device_id}"
+    if family == AVE_FAMILY_SHUTTER_HUNG:
+        return f"Window {ave_device_id}"
+    return f"Cover {ave_device_id}"
+
+
 def _endpoint_name(family: int, ave_device_id: int, ave_name: str | None) -> str:
     """Return a stable endpoint device name."""
     if family in (AVE_FAMILY_ONOFFLIGHTS, AVE_FAMILY_DIMMER):
         return _lighting_device_name(family, ave_device_id, ave_name)
+    if family in (
+        AVE_FAMILY_SHUTTER_ROLLING,
+        AVE_FAMILY_SHUTTER_SLIDING,
+        AVE_FAMILY_SHUTTER_HUNG,
+    ):
+        return _cover_device_name(family, ave_device_id, ave_name)
     if family == AVE_FAMILY_THERMOSTAT:
         return _thermostat_device_name(ave_device_id, ave_name)
     if family == AVE_FAMILY_SCENARIO:
@@ -180,6 +210,16 @@ def _lighting_parent_device_identifier(server: AveWebServer) -> tuple[str, str]:
 def _scenarios_parent_device_identifier(server: AveWebServer) -> tuple[str, str]:
     """Return the DeviceInfo identifier tuple for the scenarios parent device."""
     return (DOMAIN, f"endpoint_{_hub_identifier(server)}_{_GROUP_SCENARIOS}")
+
+
+def _covers_parent_device_identifier(server: AveWebServer) -> tuple[str, str]:
+    """Return the DeviceInfo identifier tuple for the covers parent device."""
+    return (DOMAIN, f"endpoint_{_hub_identifier(server)}_{_GROUP_COVERS}")
+
+
+def _thermostats_parent_device_identifier(server: AveWebServer) -> tuple[str, str]:
+    """Return the DeviceInfo identifier tuple for the thermostats parent device."""
+    return (DOMAIN, f"endpoint_{_hub_identifier(server)}_{_GROUP_THERMOSTATS}")
 
 
 def build_hub_device_info(server: AveWebServer) -> DeviceInfo:
@@ -221,6 +261,14 @@ def build_endpoint_device_info(
     via_device = _hub_device_identifier(server)
     if family in (AVE_FAMILY_ONOFFLIGHTS, AVE_FAMILY_DIMMER):
         via_device = _lighting_parent_device_identifier(server)
+    elif family in (
+        AVE_FAMILY_SHUTTER_ROLLING,
+        AVE_FAMILY_SHUTTER_SLIDING,
+        AVE_FAMILY_SHUTTER_HUNG,
+    ):
+        via_device = _covers_parent_device_identifier(server)
+    elif family == AVE_FAMILY_THERMOSTAT:
+        via_device = _thermostats_parent_device_identifier(server)
     elif family == AVE_FAMILY_SCENARIO:
         via_device = _scenarios_parent_device_identifier(server)
 
@@ -268,6 +316,50 @@ def ensure_scenarios_parent_device(server: AveWebServer, config_entry_id: str) -
             manufacturer="AVE",
             model=_GROUP_MODELS[_GROUP_SCENARIOS],
             name=_GROUP_NAMES[_GROUP_SCENARIOS],
+            via_device=_hub_device_identifier(server),
+            configuration_url=f"http://{server.settings.host}",
+        )
+    except HomeAssistantError:
+        # Can happen in tests or during early setup before the entry is registered.
+        return
+
+
+def ensure_covers_parent_device(server: AveWebServer, config_entry_id: str) -> None:
+    """Ensure the shared covers parent device exists in the device registry."""
+    if server.hass is None:
+        return
+
+    device_registry = dr.async_get(server.hass)
+    try:
+        device_registry.async_get_or_create(
+            config_entry_id=config_entry_id,
+            identifiers={_covers_parent_device_identifier(server)},
+            manufacturer="AVE",
+            model=_GROUP_MODELS[_GROUP_COVERS],
+            name=_GROUP_NAMES[_GROUP_COVERS],
+            via_device=_hub_device_identifier(server),
+            configuration_url=f"http://{server.settings.host}",
+        )
+    except HomeAssistantError:
+        # Can happen in tests or during early setup before the entry is registered.
+        return
+
+
+def ensure_thermostats_parent_device(
+    server: AveWebServer, config_entry_id: str
+) -> None:
+    """Ensure the shared thermostats parent device exists in the device registry."""
+    if server.hass is None:
+        return
+
+    device_registry = dr.async_get(server.hass)
+    try:
+        device_registry.async_get_or_create(
+            config_entry_id=config_entry_id,
+            identifiers={_thermostats_parent_device_identifier(server)},
+            manufacturer="AVE",
+            model=_GROUP_MODELS[_GROUP_THERMOSTATS],
+            name=_GROUP_NAMES[_GROUP_THERMOSTATS],
             via_device=_hub_device_identifier(server),
             configuration_url=f"http://{server.settings.host}",
         )
