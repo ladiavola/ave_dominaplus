@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, Mock, patch
 
+from custom_components.ave_dominaplus import ws_commands
 from custom_components.ave_dominaplus.const import (
     AVE_FAMILY_DIMMER,
     AVE_FAMILY_ONOFFLIGHTS,
@@ -32,12 +33,6 @@ def _new_server(hass: HomeAssistant, **overrides) -> AveWebServer:
     server.async_add_lg_entities = Mock()
     server.register_availability_entity = Mock()
     server.unregister_availability_entity = Mock()
-    server.dimmer_turn_on = AsyncMock()
-    server.dimmer_turn_off = AsyncMock()
-    server.dimmer_toggle = AsyncMock()
-    server.switch_turn_on = AsyncMock()
-    server.switch_turn_off = AsyncMock()
-    server.switch_toggle = AsyncMock()
     return server
 
 
@@ -221,9 +216,10 @@ async def test_dimmer_turn_on_converts_brightness_scale(hass: HomeAssistant) -> 
     server = _new_server(hass)
     light = DimmerLight("uid", AVE_FAMILY_DIMMER, 7, 0, server)
 
-    await light.async_turn_on(brightness=128)
+    with patch.object(ws_commands, "dimmer_turn_on", new=AsyncMock()) as dimmer_turn_on:
+        await light.async_turn_on(brightness=128)
 
-    server.dimmer_turn_on.assert_awaited_once_with(7, 15)
+    dimmer_turn_on.assert_awaited_once_with(server, 7, 15)
 
 
 async def test_onoff_light_turn_on_routes_to_switch(hass: HomeAssistant) -> None:
@@ -231,10 +227,14 @@ async def test_onoff_light_turn_on_routes_to_switch(hass: HomeAssistant) -> None
     server = _new_server(hass)
     light = DimmerLight("uid", AVE_FAMILY_ONOFFLIGHTS, 11, 0, server)
 
-    await light.async_turn_on()
+    with (
+        patch.object(ws_commands, "switch_turn_on", new=AsyncMock()) as switch_turn_on,
+        patch.object(ws_commands, "dimmer_turn_on", new=AsyncMock()) as dimmer_turn_on,
+    ):
+        await light.async_turn_on()
 
-    server.switch_turn_on.assert_awaited_once_with(11)
-    server.dimmer_turn_on.assert_not_awaited()
+    switch_turn_on.assert_awaited_once_with(server, 11)
+    dimmer_turn_on.assert_not_awaited()
 
 
 async def test_light_lifecycle_registers_and_unregisters_availability(

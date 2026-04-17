@@ -10,6 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from . import ws_commands
 from .const import AVE_FAMILY_DIMMER, AVE_FAMILY_ONOFFLIGHTS
 from .device_info import (
     build_endpoint_device_info,
@@ -307,9 +308,9 @@ class DimmerLight(LightEntity):
             return
 
         if self.family == AVE_FAMILY_ONOFFLIGHTS:
-            await self._webserver.switch_toggle(self.ave_device_id)
+            await ws_commands.switch_toggle(self._webserver, self.ave_device_id)
         elif self.family == AVE_FAMILY_DIMMER:
-            await self._webserver.dimmer_toggle(self.ave_device_id)
+            await ws_commands.dimmer_toggle(self._webserver, self.ave_device_id)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the light on, optionally setting brightness."""
@@ -317,17 +318,21 @@ class DimmerLight(LightEntity):
             return
 
         if self.family == AVE_FAMILY_ONOFFLIGHTS:
-            await self._webserver.switch_turn_on(self.ave_device_id)
+            await ws_commands.switch_turn_on(self._webserver, self.ave_device_id)
             return
 
         if self.family == AVE_FAMILY_DIMMER:
             brightness_ha = kwargs.get(ATTR_BRIGHTNESS)
             if brightness_ha is None:
-                await self._webserver.dimmer_turn_on(self.ave_device_id, 31)
+                await ws_commands.dimmer_turn_on(
+                    self._webserver, self.ave_device_id, 31
+                )
                 return
 
             brightness_ave = max(1, int((int(brightness_ha) / 255) * 31))
-            await self._webserver.dimmer_turn_on(self.ave_device_id, brightness_ave)
+            await ws_commands.dimmer_turn_on(
+                self._webserver, self.ave_device_id, brightness_ave
+            )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the light off."""
@@ -335,9 +340,9 @@ class DimmerLight(LightEntity):
             return
 
         if self.family == AVE_FAMILY_ONOFFLIGHTS:
-            await self._webserver.switch_turn_off(self.ave_device_id)
+            await ws_commands.switch_turn_off(self._webserver, self.ave_device_id)
         elif self.family == AVE_FAMILY_DIMMER:
-            await self._webserver.dimmer_turn_off(self.ave_device_id)
+            await ws_commands.dimmer_turn_off(self._webserver, self.ave_device_id)
 
     @property
     def unique_id(self) -> str:

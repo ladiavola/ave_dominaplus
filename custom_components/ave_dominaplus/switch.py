@@ -10,6 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from . import ws_commands
 from .const import AVE_FAMILY_ONOFFLIGHTS, AVE_FAMILY_SCENARIO
 from .device_info import (
     build_endpoint_device_info,
@@ -235,17 +236,17 @@ class LightSwitch(SwitchEntity):
     async def async_toggle(self, **kwargs: Any) -> None:
         """Toggle the switch."""
         if self._webserver:
-            await self._webserver.switch_toggle(self.ave_device_id)
+            await ws_commands.switch_toggle(self._webserver, self.ave_device_id)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         if self._webserver:
-            await self._webserver.switch_turn_on(self.ave_device_id)
+            await ws_commands.switch_turn_on(self._webserver, self.ave_device_id)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
         if self._webserver:
-            await self._webserver.switch_turn_off(self.ave_device_id)
+            await ws_commands.switch_turn_off(self._webserver, self.ave_device_id)
 
     @property
     def unique_id(self) -> str:

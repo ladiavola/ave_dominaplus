@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 from custom_components.ave_dominaplus.web_server import AveWebServer
+from custom_components.ave_dominaplus.ws_connection_flow import wait_for_ldi
 from homeassistant.core import HomeAssistant
 
 
@@ -149,18 +150,18 @@ async def test_wait_for_ldi_returns_false_on_timeout(hass: HomeAssistant) -> Non
         raise TimeoutError
 
     with patch(
-        "custom_components.ave_dominaplus.web_server.asyncio.wait_for",
+        "custom_components.ave_dominaplus.ws_connection_flow.asyncio.wait_for",
         new=AsyncMock(side_effect=_raise_timeout),
     ):
-        assert await server._wait_for_ldi() is False
+        assert await wait_for_ldi(server) is False
 
 
 async def test_wait_for_ldi_returns_true_when_event_set(hass: HomeAssistant) -> None:
     """LDI wait helper should return True when event is already set."""
     server = _new_server(hass)
-    server._ldi_done.set()
+    server.ldi_done.set()
 
-    assert await server._wait_for_ldi() is True
+    assert await wait_for_ldi(server) is True
 
 
 async def test_build_crc_returns_two_hex_chars(hass: HomeAssistant) -> None:

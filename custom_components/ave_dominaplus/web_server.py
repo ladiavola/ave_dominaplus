@@ -10,23 +10,10 @@ from typing import TYPE_CHECKING, Any
 import aiohttp
 from defusedxml import ElementTree as DefusedET
 
+from . import ws_routing
 from .ave_map import AveMap
-from .ave_thermostat import AveThermostatProperties
-from .const import (
-    AVE_FAMILY_ANTITHEFT,
-    AVE_FAMILY_ANTITHEFT_AREA,
-    AVE_FAMILY_CAMERA,
-    AVE_FAMILY_DIMMER,
-    AVE_FAMILY_KEYPAD,
-    AVE_FAMILY_MOTION_SENSOR,
-    AVE_FAMILY_ONOFFLIGHTS,
-    AVE_FAMILY_SCENARIO,
-    AVE_FAMILY_SHUTTER_HUNG,
-    AVE_FAMILY_SHUTTER_ROLLING,
-    AVE_FAMILY_SHUTTER_SLIDING,
-    AVE_FAMILY_THERMOSTAT,
-    AVE_UNHANDLED_UPD,
-)
+from .ws_connection_flow import on_connect_actions as ws_on_connect_actions
+from .ws_settings import AveWebServerSettings
 
 if TYPE_CHECKING:
     from types import MappingProxyType
@@ -34,31 +21,6 @@ if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
 
 _LOGGER = logging.getLogger(__name__)
-
-
-class AveWebServerSettings:
-    """AVE web server settings class."""
-
-    host: str
-    get_entity_names: bool
-    fetch_sensor_areas: bool
-    fetch_sensors: bool
-    fetch_lights: bool
-    fetch_covers: bool
-    fetch_scenarios: bool
-    fetch_thermostats: bool
-
-    def __init__(self) -> None:
-        """Initialize the settings."""
-        self.host = ""
-        self.get_entity_names = False
-        self.fetch_sensor_areas = False
-        self.fetch_sensors = False
-        self.fetch_lights = False
-        self.fetch_covers = False
-        self.fetch_scenarios = True
-        self.fetch_thermostats = False
-        self.on_off_lights_as_switch = True
 
 
 class AveWebServer:
@@ -72,17 +34,8 @@ class AveWebServer:
         """Initialize."""
         self.settings = AveWebServerSettings()
         try:
-            self.settings = AveWebServerSettings()
-            self.settings.host = settings_data["ip_address"]
-            self.settings.get_entity_names = settings_data["get_entities_names"]
-            self.settings.fetch_sensor_areas = settings_data["fetch_sensor_areas"]
-            self.settings.fetch_sensors = settings_data["fetch_sensors"]
-            self.settings.fetch_lights = settings_data["fetch_lights"]
-            self.settings.fetch_covers = settings_data.get("fetch_covers", True)
-            self.settings.fetch_scenarios = settings_data.get("fetch_scenarios", True)
-            self.settings.fetch_thermostats = settings_data["fetch_thermostats"]
-            self.settings.on_off_lights_as_switch = settings_data.get(
-                "on_off_lights_as_switch", True
+            self.settings = AveWebServerSettings.from_config_entry_options(
+                settings_data
             )
         except KeyError:
             _LOGGER.exception("Missing key in settings data")
@@ -122,11 +75,11 @@ class AveWebServer:
         self.async_add_th_entities: Any = None
         self.update_thermostat: Any = None
         self.ave_map: AveMap = AveMap()
-        self._ldi_done = asyncio.Event()
-        self._thermostat_lm_done = asyncio.Event()
-        self._thermostat_lmc_done = asyncio.Event()
-        self._connect_actions_task: asyncio.Task | None = None
-        self._thermostat_fetch_task: asyncio.Task | None = None
+        self.ldi_done = asyncio.Event()
+        self.thermostat_lm_done = asyncio.Event()
+        self.thermostat_lmc_done = asyncio.Event()
+        self.connect_actions_task: asyncio.Task | None = None
+        self.thermostat_fetch_task: asyncio.Task | None = None
         self.numbers: dict = {}  # Track number entities by unique ID
         self.async_add_number_entities: Any = None
         self.update_th_offset: Any = None
@@ -329,12 +282,12 @@ class AveWebServer:
     async def disconnect(self) -> None:
         """Disconnect from the web server."""
         self.closed = True
-        if self._connect_actions_task and not self._connect_actions_task.done():
-            self._connect_actions_task.cancel()
-            self._connect_actions_task = None
-        if self._thermostat_fetch_task and not self._thermostat_fetch_task.done():
-            self._thermostat_fetch_task.cancel()
-            self._thermostat_fetch_task = None
+        if self.connect_actions_task and not self.connect_actions_task.done():
+            self.connect_actions_task.cancel()
+            self.connect_actions_task = None
+        if self.thermostat_fetch_task and not self.thermostat_fetch_task.done():
+            self.thermostat_fetch_task.cancel()
+            self.thermostat_fetch_task = None
         if self.ws_conn:
             await self.ws_conn.close()
             self.ws_conn = None
@@ -362,8 +315,8 @@ class AveWebServer:
                         continue
 
                 if self.started:
-                    self._connect_actions_task = asyncio.create_task(
-                        self.on_connect_actions()
+                    self.connect_actions_task = asyncio.create_task(
+                        ws_on_connect_actions(self)
                     )
 
                 async for msg in self.ws_conn:
@@ -381,102 +334,6 @@ class AveWebServer:
                 await asyncio.sleep(5)  # Retry after a delay
 
         _LOGGER.debug("WebSocket connection stopped")
-
-    async def on_connect_actions(self) -> None:
-        """Actions to perform after connecting to the web server."""
-        if self.ws_conn is None or self.ws_conn.closed:
-            return
-
-        self._ldi_done.clear()
-        # await self.send_ws_command("LDI")  # Get device list (legacy)
-        await self.send_ws_command("LI2")  # Get device list (with addresses)
-        if not await self._wait_for_ldi():
-            return
-
-        if self.settings.fetch_lights:
-            # Get status by family type 1 (switches) and 2 (dimmers)
-            await self.send_ws_command("GSF", [str(AVE_FAMILY_ONOFFLIGHTS)])
-            await self.send_ws_command("GSF", [str(AVE_FAMILY_DIMMER)])
-
-        if self.settings.fetch_covers:
-            await self.send_ws_command("GSF", [str(AVE_FAMILY_SHUTTER_ROLLING)])
-            await self.send_ws_command("GSF", [str(AVE_FAMILY_SHUTTER_SLIDING)])
-            await self.send_ws_command("GSF", [str(AVE_FAMILY_SHUTTER_HUNG)])
-
-        if self.settings.fetch_scenarios:
-            # probably useless. Evaluate getting WSF instead
-            await self.send_ws_command("GSF", [str(AVE_FAMILY_SCENARIO)])
-
-        # Get status by family type 12 (motion detection areas)
-        if self.settings.fetch_sensor_areas:
-            await self.send_ws_command("GSF", [str(AVE_FAMILY_ANTITHEFT_AREA)])
-            await self.send_ws_command("WSF", [str(AVE_FAMILY_ANTITHEFT_AREA)])
-
-        if self.settings.fetch_thermostats:
-            await self._start_thermostats_fetch_flow()
-
-        await self.send_ws_command("SU3")  # Start streaming updates (most of them)
-
-        # Starts streaming some other updates (UPD for TLO and XU, NET and CLD)
-        # await self.send_ws_command("SU2")
-
-    async def _start_thermostats_fetch_flow(self) -> None:
-        """Start thermostat bootstrap flow without blocking message handling."""
-
-        """Some thermostats updates come with mapCommandId as a reference instead of device ID
-        so we need to fetch the map and commands to be able to link thermostats to their device ID and get their names if the setting is enabled.
-        """
-        self.ave_map = AveMap()
-        self._thermostat_lm_done.clear()
-        self._thermostat_lmc_done.clear()
-
-        if self._thermostat_fetch_task and not self._thermostat_fetch_task.done():
-            self._thermostat_fetch_task.cancel()
-
-        await self.send_ws_command("LM")
-        self._thermostat_fetch_task = asyncio.create_task(self._termostats_fetch_flow())
-
-    async def _wait_for_ldi(self) -> bool:
-        """Wait for at least one LDI response before thermostat bootstrap."""
-        try:
-            await asyncio.wait_for(self._ldi_done.wait(), 15.0)
-        except TimeoutError:
-            _LOGGER.warning(
-                "Timed out waiting for LDI response; skipping thermostat bootstrap"
-            )
-            return False
-        return True
-
-    async def _termostats_fetch_flow(self) -> None:
-        # 1) wait until LM responses are received and the map is loaded
-        try:
-            await asyncio.wait_for(self._thermostat_lm_done.wait(), 15.0)
-        except TimeoutError:
-            _LOGGER.warning(
-                "Timed out waiting for LM responses; skipping thermostat map"
-            )
-            return
-
-        # 2) send LMC for each area once the LM map is loaded
-        if self.ave_map.areas_loaded and self.ws_conn and not self.ws_conn.closed:
-            if not self.ave_map.areas:
-                _LOGGER.debug("LM map returned no areas")
-                return
-            for map_id in self.ave_map.areas:
-                await self.send_ws_command("LMC", [map_id])
-        else:
-            _LOGGER.debug("Map not loaded or ws disconnected; skipping LMC send")
-            return
-
-        # 3) wait for all LMC responses (commands loaded)
-        try:
-            await asyncio.wait_for(self._thermostat_lmc_done.wait(), 15.0)
-        except TimeoutError:
-            _LOGGER.warning("Timed out waiting for LMC responses; proceeding")
-
-        # 4) request thermostat status snapshots
-        for device_id in self.all_thermostats_raw:
-            await self.send_ws_command("WTS", [str(device_id)])
 
     def value_to_hex(self, value):
         """Return the hexadecimal value of a number."""
@@ -574,17 +431,17 @@ class AveWebServer:
         elif command == "ping":
             await self.send_ws_command("PONG")
         elif command == "gsf":
-            self.manage_gsf(parameters, records)
+            ws_routing.manage_gsf(self, parameters, records)
         elif command == "upd":
-            self.manage_upd(parameters, records)
+            ws_routing.manage_upd(self, parameters, records)
         elif command in {"ldi", "li2"}:
-            self.manage_ldi_li2(parameters, records, command)
+            ws_routing.manage_ldi_li2(self, parameters, records, command)
         elif command == "lm":
-            self.manage_lm(parameters, records)
+            ws_routing.manage_lm(self, parameters, records)
         elif command == "lmc":
-            self.manage_lmc(parameters, records)
+            ws_routing.manage_lmc(self, parameters, records)
         elif command == "wts":
-            self.manage_wts(parameters, records)
+            ws_routing.manage_wts(self, parameters, records)
         elif command == "cld":
             # cloud commands received from SU2
             pass
@@ -606,511 +463,6 @@ class AveWebServer:
                     "records": records,
                 },
             )
-
-    def manage_upd(self, parameters, records) -> None:
-        """Manage UPD commands received from the web server."""
-        _LOGGER.debug(
-            "Received UPD command. Parameters: %s | Records: %s",
-            parameters,
-            records,
-        )
-        if parameters[0] == "WS":
-            device_type, device_id, device_status = (
-                int(parameters[1]),
-                int(parameters[2]),
-                int(parameters[3]),
-            )
-            self.manage_upd_ws(device_type, device_id, device_status)
-        elif parameters[0] == "X" and parameters[1] == "A":  # ANTITHEFT AREA
-            if not self.settings.fetch_sensor_areas:
-                return
-
-            """parameters[2] is the area ID.
-            all other parameters are == 0 when triggered,
-            parameters[6] == 1 when cleared"""
-
-            area_progressive = int(parameters[2])
-            # area_engaged = int(parameters[3])
-            # area_in_alarm = int(parameters[5])
-            area_clear = int(parameters[6])
-            status = 1
-            if area_clear > 0:
-                status = 0
-            self.update_binary_sensor(
-                self, AVE_FAMILY_ANTITHEFT_AREA, area_progressive, status
-            )
-            # f"XA - areaID: {area_progressive}
-            # - engaged: {area_engaged}
-            # - clear: {area_clear}
-            # - alarm: {area_in_alarm}")
-        elif parameters[0] == "X" and parameters[1] == "S":  # ANTITHEFT SENSOR
-            if not self.settings.fetch_sensors:
-                return
-            self.update_binary_sensor(
-                self, AVE_FAMILY_MOTION_SENSOR, int(parameters[2]), int(parameters[4])
-            )
-        elif parameters[0] == "X" and parameters[1] == "U":
-            # ANTITHEFT UNIT (requires SU2)
-            _LOGGER.debug("XU Antitheft Unit - engaged", extra={"id": parameters[2]})
-        elif parameters[0] == "WT":
-            # Serveral updates for thermostats, using Device ID as identifier
-            if parameters[1] == "O":
-                self.update_thermostat(
-                    server=self,
-                    parameters=parameters,
-                    records=records,
-                    command=None,
-                    properties=None,
-                    ave_device_id=None,
-                )
-                self.update_th_offset(
-                    server=self,
-                    family=AVE_FAMILY_THERMOSTAT,
-                    ave_device_id=int(parameters[2]),
-                    offset_value=int(parameters[3]) / 10,
-                )
-        elif parameters[0] in ["TM", "TW", "TP"]:
-            # Thermostats update with device ID as identifier
-            self.update_thermostat(
-                server=self,
-                parameters=parameters,
-                records=records,
-                command=None,
-                properties=None,
-                ave_device_id=None,
-            )
-        elif parameters[0] in ["TT", "TR", "TL", "TLO", "TO", "TS"]:
-            # THERMOSTAT updates with command ID as identifier
-            if (
-                not self.ave_map
-                or not self.ave_map.areas_loaded
-                or not self.ave_map.command_loaded
-            ):
-                _LOGGER.debug("Received th update before map/commands loaded; skipping")
-                return
-            _command = self.ave_map.get_command_by_id_and_family(
-                int(parameters[1]), AVE_FAMILY_THERMOSTAT
-            )
-            if not _command:
-                _LOGGER.debug(
-                    "Received th update for unknown command ID %s; skipping",
-                    parameters[1],
-                )
-                return
-            self.update_thermostat(
-                server=self,
-                parameters=parameters,
-                records=records,
-                command=_command,
-                properties=None,
-                ave_device_id=None,
-            )
-        elif parameters[0] in AVE_UNHANDLED_UPD:
-            pass
-        else:
-            _LOGGER.debug(
-                "Received not unknown UPD %s",
-                parameters[0],
-                extra={"parameters": parameters},
-            )
-
-    def manage_upd_ws(
-        self, device_type: int, device_id: int, device_status: int
-    ) -> None:
-        """Manage UPD WS (status update) commands based on device type."""
-        if device_id > 200000:
-            # Devices with ID > 2000000 must be scenarios or something...
-            return
-        if device_type == AVE_FAMILY_ONOFFLIGHTS and self.settings.fetch_lights:
-            if self.settings.on_off_lights_as_switch:
-                self.update_switch(self, device_type, device_id, device_status, None)
-            else:
-                self.update_light(self, device_type, device_id, device_status, None)
-        elif device_type == AVE_FAMILY_DIMMER and self.settings.fetch_lights:
-            self.update_light(self, device_type, device_id, device_status, None)
-        elif (
-            device_type
-            in (
-                AVE_FAMILY_SHUTTER_ROLLING,
-                AVE_FAMILY_SHUTTER_SLIDING,
-                AVE_FAMILY_SHUTTER_HUNG,
-            )
-            and self.settings.fetch_covers
-        ):
-            self.update_cover(self, device_type, device_id, device_status, None)
-        elif device_type == AVE_FAMILY_SCENARIO and self.settings.fetch_scenarios:
-            self.update_binary_sensor(
-                self, AVE_FAMILY_SCENARIO, device_id, device_status, None
-            )
-        # elif device_type in [12, 13]:
-        #     _LOGGER.debug(
-        #         "Received async Antitheft status update. "
-        #         "Device ID: %s, Device Type: %s, Status: %s",
-        #         device_id,
-        #         device_type,
-        #         device_status,
-        #     )
-
-    def manage_gsf(self, parameters: list[Any], records: list[list[Any]]) -> None:
-        """Manage GSF Get Status by Family responses."""
-        _LOGGER.debug(
-            "Received GSF (Get status by family) response for family %s, parameters: %s | records: %s",
-            parameters[0],
-            parameters,
-            records,
-        )
-        if parameters[0] in [
-            str(AVE_FAMILY_ANTITHEFT),
-            str(AVE_FAMILY_ANTITHEFT_AREA),
-        ]:  # Motion detection types
-            for record in records:
-                device_id, device_status = int(record[0]), int(record[1])
-                self.update_binary_sensor(
-                    self, int(parameters[0]), device_id, device_status
-                )
-
-        if parameters[0] == str(AVE_FAMILY_ONOFFLIGHTS):
-            for record in records:
-                device_id, device_status = int(record[0]), int(record[1])
-                if self.settings.on_off_lights_as_switch:
-                    self.update_switch(
-                        self, AVE_FAMILY_ONOFFLIGHTS, device_id, device_status, None
-                    )
-                else:
-                    self.update_light(
-                        self, AVE_FAMILY_ONOFFLIGHTS, device_id, device_status, None
-                    )
-                # send_mqtt_message(device_id, device_status)
-
-        if parameters[0] == str(AVE_FAMILY_DIMMER):
-            for record in records:
-                device_id, device_status = int(record[0]), int(record[1])
-                if self.update_light is not None:
-                    self.update_light(
-                        self, AVE_FAMILY_DIMMER, device_id, device_status, None
-                    )
-
-        if parameters[0] in [
-            str(AVE_FAMILY_SHUTTER_ROLLING),
-            str(AVE_FAMILY_SHUTTER_SLIDING),
-            str(AVE_FAMILY_SHUTTER_HUNG),
-        ]:
-            for record in records:
-                device_id, device_status = int(record[0]), int(record[1])
-                if self.update_cover is not None:
-                    self.update_cover(
-                        self,
-                        int(parameters[0]),
-                        device_id,
-                        device_status,
-                        None,
-                    )
-
-        if parameters[0] == str(AVE_FAMILY_SCENARIO):
-            for record in records:
-                device_id, device_status = int(record[0]), int(record[1])
-                if self.update_binary_sensor is not None:
-                    self.update_binary_sensor(
-                        self,
-                        AVE_FAMILY_SCENARIO,
-                        device_id,
-                        device_status,
-                        None,
-                    )
-
-    def manage_ldi_li2(
-        self, parameters: list[Any], records: list[list[Any]], command: str
-    ) -> None:
-        """Manage LDI/LI2 List Devices commands received from the web server."""
-        _LOGGER.debug(
-            "Parsing %s (List Devices) command, parameters: %s | records: %s",
-            command,
-            parameters,
-            records,
-        )
-        self.raw_ldi = []
-        for record in records:
-            try:
-                device_id, device_name, device_type, address = (
-                    int(record[0]),
-                    str(record[1]),
-                    int(record[2]),
-                    record[3],
-                )
-                # record[3] contains the decimal representation of the address
-                address_dec = None
-                address_hex = None
-                if command == "li2":
-                    try:
-                        address_dec = int(str(address).strip())
-                    except Exception:
-                        _LOGGER.debug(
-                            "Failed parsing address '%s'; leaving address_dec unset",
-                            address,
-                        )
-                        address_dec = None
-                    # Store address as two-digit uppercase hex string when available
-                    address_hex = (
-                        format(address_dec & 0xFF, "02X")
-                        if address_dec is not None
-                        else ""
-                    )
-                self.raw_ldi.append(
-                    {
-                        "device_id": device_id,
-                        "device_name": device_name,
-                        "device_type": device_type,
-                        "address_dec": address_dec,
-                        "address_hex": address_hex,
-                    }
-                )
-                if device_name and device_name[0] == "$":
-                    # RGBW, unhandled
-                    continue
-                if device_name and device_name[-1] == "$":
-                    # DALI, unhandled
-                    continue
-                if device_type == AVE_FAMILY_ANTITHEFT_AREA:
-                    # Antitheft area
-                    self.update_binary_sensor(
-                        self, AVE_FAMILY_ANTITHEFT_AREA, device_id, -1, device_name
-                    )
-                elif device_type == AVE_FAMILY_KEYPAD:
-                    # Keypad
-                    pass
-                elif device_type == AVE_FAMILY_ONOFFLIGHTS:
-                    if self.settings.on_off_lights_as_switch:
-                        self.update_switch(
-                            self,
-                            AVE_FAMILY_ONOFFLIGHTS,
-                            device_id,
-                            -1,
-                            device_name,
-                            address_dec,
-                        )
-                    else:
-                        self.update_light(
-                            self,
-                            AVE_FAMILY_ONOFFLIGHTS,
-                            device_id,
-                            -1,
-                            device_name,
-                            address_dec,
-                        )
-                    # Light
-                elif device_type == AVE_FAMILY_DIMMER:
-                    self.update_light(
-                        self,
-                        AVE_FAMILY_DIMMER,
-                        device_id,
-                        -1,
-                        device_name,
-                        address_dec,
-                    )
-                    # Dimmer light
-                elif device_type in (
-                    AVE_FAMILY_SHUTTER_ROLLING,
-                    AVE_FAMILY_SHUTTER_SLIDING,
-                    AVE_FAMILY_SHUTTER_HUNG,
-                ):
-                    self.update_cover(
-                        self,
-                        device_type,
-                        device_id,
-                        -1,
-                        device_name,
-                        address_dec,
-                    )
-                elif device_type == AVE_FAMILY_THERMOSTAT:
-                    # All thermostats
-                    self.all_thermostats_raw[device_id] = {
-                        "device_name": device_name,
-                        "address_dec": address_dec,
-                        "address_hex": address_hex,
-                    }
-                elif device_type == AVE_FAMILY_SCENARIO:
-                    # Scenario
-                    if self.settings.fetch_scenarios:
-                        if self.update_button is not None:
-                            self.update_button(
-                                self,
-                                AVE_FAMILY_SCENARIO,
-                                device_id,
-                                device_name,
-                                address_dec,
-                            )
-                        if self.update_binary_sensor is not None:
-                            self.update_binary_sensor(
-                                self,
-                                AVE_FAMILY_SCENARIO,
-                                device_id,
-                                -1,
-                                device_name,
-                            )
-                elif device_type == AVE_FAMILY_CAMERA:
-                    # Camera
-                    pass
-                else:
-                    _LOGGER.debug(
-                        "Unknown device type %s for %s, skipping",
-                        device_type,
-                        device_name,
-                    )
-                    continue
-            except Exception:
-                _LOGGER.exception("Error parsing device record: %s", record)
-        self._ldi_done.set()
-
-    def manage_lm(self, parameters, records) -> None:
-        """Manage LM List Map commands received from the web server."""
-        _LOGGER.debug(
-            "Parsing LM (List Map) command, parameters: %s | records: %s",
-            parameters,
-            records,
-        )
-        self.ave_map.load_areas_from_wsrecords(records)
-        self.ave_map.areas_loaded = True
-        self._thermostat_lm_done.set()
-
-    def manage_lmc(self, parameters, records) -> None:
-        """Manage LMC List Map Commands responses."""
-        _LOGGER.debug(
-            "Parsing LMC response, parameters: %s | records: %s",
-            parameters,
-            records,
-        )
-        area_id = int(parameters[0])
-        self.ave_map.load_area_commands(area_id, records)
-        if self.ave_map.command_loaded:
-            self._thermostat_lmc_done.set()
-
-    def manage_wts(self, parameters: list[Any], records: list[list[Any]]) -> None:
-        """Manage WTS command responses."""
-        _LOGGER.debug(
-            "Parsing WTS response, parameters: %s | records: %s",
-            parameters,
-            records,
-        )
-        device_id = int(parameters[0])
-        thermostat_properties = AveThermostatProperties.from_wts(parameters, records)
-        thermostat_properties.device_name = (
-            f"thermostat_{thermostat_properties.device_id}"
-        )
-        if self.settings.get_entity_names:
-            thermostat_properties.device_name = self.all_thermostats_raw[device_id][
-                "device_name"
-            ]
-
-        self.update_thermostat(
-            server=self,
-            parameters=parameters,
-            records=records,
-            command=None,
-            properties=thermostat_properties,
-            ave_device_id=device_id,
-            address_dec=self.all_thermostats_raw[device_id].get("address_dec"),
-        )
-        if thermostat_properties.offset is not None:
-            self.update_th_offset(
-                server=self,
-                family=AVE_FAMILY_THERMOSTAT,
-                ave_device_id=device_id,
-                offset_value=thermostat_properties.offset,
-                name=thermostat_properties.device_name,
-                address_dec=self.all_thermostats_raw[device_id].get("address_dec"),
-            )
-
-    async def switch_turn_on(self, device_id: int) -> None:
-        """Turn on the switch."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "11"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def switch_turn_off(self, device_id: int) -> None:
-        """Turn off the switch."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "12"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def switch_toggle(self, device_id: int) -> None:
-        """Toggle the switch."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "10"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def scenario_execute(self, device_id: int) -> None:
-        """Execute a scenario."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("ESI", [str(device_id), "0"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def dimmer_turn_on(self, device_id: int, brightness_ave: int) -> None:
-        """Turn on the dimmer."""
-        clamped_level = max(0, min(31, int(brightness_ave)))
-        if clamped_level == 0:
-            await self.dimmer_turn_off(device_id)
-            return
-
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "3"])
-            await self.send_ws_command("SIL", [str(device_id)], [[clamped_level]])
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def dimmer_turn_off(self, device_id: int) -> None:
-        """Turn off the dimmer."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "4"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def dimmer_toggle(self, device_id: int) -> None:
-        """Toggle the dimmer."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EBI", [str(device_id), "2"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def cover_open(self, device_id: int) -> None:
-        """Open the cover."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EAI", [str(device_id), "8"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def cover_close(self, device_id: int) -> None:
-        """Close the cover."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EAI", [str(device_id), "9"])
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def cover_stop(self, device_id: int, command: str) -> None:
-        """Stop the cover according to AVE movement direction command."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("EAI", [str(device_id), command])
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def send_thermostat_sts(
-        self, parameters: list[Any], records: list[list[Any]]
-    ) -> None:
-        """Send a command to update the thermostat season/temperatures."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("STS", parameters, records)
-        else:
-            _LOGGER.error("WebSocket is not connected")
-
-    async def thermostat_on_off(self, device_id: int, on_off: int) -> None:
-        """Turn the thermostat on or off."""
-        if self.ws_conn and not self.ws_conn.closed:
-            await self.send_ws_command("TOO", [str(device_id), str(on_off)])
-        else:
-            _LOGGER.error("WebSocket is not connected")
 
     async def call_bridge(self, command: str) -> tuple[int, str | None]:
         """Call a xml "rest" bridge for common commands."""

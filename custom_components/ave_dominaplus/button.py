@@ -10,6 +10,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from . import ws_commands
 from .const import AVE_FAMILY_SCENARIO
 from .device_info import (
     build_endpoint_device_info,
@@ -248,7 +249,7 @@ class ScenarioButton(ButtonEntity):
     async def async_press(self) -> None:
         """Trigger scenario execution on the AVE webserver."""
         if self._webserver:
-            await self._webserver.scenario_execute(self.ave_device_id)
+            await ws_commands.scenario_execute(self._webserver, self.ave_device_id)
 
     def set_name(self, name: str | None) -> None:
         """Set entity name."""

@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
+from custom_components.ave_dominaplus import ws_commands, ws_routing
 from custom_components.ave_dominaplus.ave_thermostat import AveThermostatProperties
 from custom_components.ave_dominaplus.const import AVE_FAMILY_THERMOSTAT
 from custom_components.ave_dominaplus.web_server import AveWebServer
@@ -36,12 +37,12 @@ async def test_switch_and_cover_commands_dispatch_when_connected(
     server.ws_conn = SimpleNamespace(closed=False)
     server.send_ws_command = AsyncMock()
 
-    await server.switch_turn_on(7)
-    await server.switch_turn_off(7)
-    await server.switch_toggle(7)
-    await server.cover_open(8)
-    await server.cover_close(8)
-    await server.cover_stop(8, "9")
+    await ws_commands.switch_turn_on(server, 7)
+    await ws_commands.switch_turn_off(server, 7)
+    await ws_commands.switch_toggle(server, 7)
+    await ws_commands.cover_open(server, 8)
+    await ws_commands.cover_close(server, 8)
+    await ws_commands.cover_stop(server, 8, "9")
 
     server.send_ws_command.assert_any_await("EBI", ["7", "11"])
     server.send_ws_command.assert_any_await("EBI", ["7", "12"])
@@ -59,7 +60,7 @@ async def test_scenario_execute_dispatches_when_connected(
     server.ws_conn = SimpleNamespace(closed=False)
     server.send_ws_command = AsyncMock()
 
-    await server.scenario_execute(15)
+    await ws_commands.scenario_execute(server, 15)
 
     server.send_ws_command.assert_awaited_once_with("ESI", ["15", "0"])
 
@@ -70,7 +71,7 @@ async def test_dimmer_turn_on_clamps_and_dispatches(hass: HomeAssistant) -> None
     server.ws_conn = SimpleNamespace(closed=False)
     server.send_ws_command = AsyncMock()
 
-    await server.dimmer_turn_on(3, 99)
+    await ws_commands.dimmer_turn_on(server, 3, 99)
 
     server.send_ws_command.assert_any_await("EBI", ["3", "3"])
     server.send_ws_command.assert_any_await("SIL", ["3"], [[31]])
@@ -79,11 +80,12 @@ async def test_dimmer_turn_on_clamps_and_dispatches(hass: HomeAssistant) -> None
 async def test_dimmer_turn_on_zero_routes_to_turn_off(hass: HomeAssistant) -> None:
     """Zero brightness should be normalized to dimmer_turn_off path."""
     server = _new_server(hass)
-    server.dimmer_turn_off = AsyncMock()
+    with patch.object(
+        ws_commands, "dimmer_turn_off", new=AsyncMock()
+    ) as dimmer_turn_off:
+        await ws_commands.dimmer_turn_on(server, 5, 0)
 
-    await server.dimmer_turn_on(5, 0)
-
-    server.dimmer_turn_off.assert_awaited_once_with(5)
+    dimmer_turn_off.assert_awaited_once_with(server, 5)
 
 
 async def test_dimmer_toggle_and_off_dispatch_when_connected(
@@ -94,8 +96,8 @@ async def test_dimmer_toggle_and_off_dispatch_when_connected(
     server.ws_conn = SimpleNamespace(closed=False)
     server.send_ws_command = AsyncMock()
 
-    await server.dimmer_toggle(4)
-    await server.dimmer_turn_off(4)
+    await ws_commands.dimmer_toggle(server, 4)
+    await ws_commands.dimmer_turn_off(server, 4)
 
     server.send_ws_command.assert_any_await("EBI", ["4", "2"])
     server.send_ws_command.assert_any_await("EBI", ["4", "4"])
@@ -107,8 +109,8 @@ async def test_thermostat_commands_dispatch_when_connected(hass: HomeAssistant) 
     server.ws_conn = SimpleNamespace(closed=False)
     server.send_ws_command = AsyncMock()
 
-    await server.send_thermostat_sts(["4"], [[1, 1, 210]])
-    await server.thermostat_on_off(4, 1)
+    await ws_commands.send_thermostat_sts(server, ["4"], [[1, 1, 210]])
+    await ws_commands.thermostat_on_off(server, 4, 1)
 
     server.send_ws_command.assert_any_await("STS", ["4"], [[1, 1, 210]])
     server.send_ws_command.assert_any_await("TOO", ["4", "1"])
@@ -120,10 +122,10 @@ async def test_commands_noop_when_not_connected(hass: HomeAssistant) -> None:
     server.ws_conn = None
     server.send_ws_command = AsyncMock()
 
-    await server.switch_turn_on(1)
-    await server.dimmer_turn_off(2)
-    await server.cover_open(3)
-    await server.send_thermostat_sts(["1"], [[1, 1, 210]])
+    await ws_commands.switch_turn_on(server, 1)
+    await ws_commands.dimmer_turn_off(server, 2)
+    await ws_commands.cover_open(server, 3)
+    await ws_commands.send_thermostat_sts(server, ["1"], [[1, 1, 210]])
 
     server.send_ws_command.assert_not_awaited()
 
@@ -140,10 +142,10 @@ def test_manage_wts_routes_name_and_offset_updates(hass: HomeAssistant) -> None:
     props.offset = 1.3
 
     with patch(
-        "custom_components.ave_dominaplus.web_server.AveThermostatProperties.from_wts",
+        "custom_components.ave_dominaplus.ws_routing.AveThermostatProperties.from_wts",
         return_value=props,
     ):
-        server.manage_wts(["4"], [["ignored"]])
+        ws_routing.manage_wts(server, ["4"], [["ignored"]])
 
     assert props.device_name == "Living"
     server.update_thermostat.assert_called_once()
@@ -169,10 +171,10 @@ def test_manage_wts_skips_offset_update_when_missing(hass: HomeAssistant) -> Non
     props.offset = None
 
     with patch(
-        "custom_components.ave_dominaplus.web_server.AveThermostatProperties.from_wts",
+        "custom_components.ave_dominaplus.ws_routing.AveThermostatProperties.from_wts",
         return_value=props,
     ):
-        server.manage_wts(["4"], [["ignored"]])
+        ws_routing.manage_wts(server, ["4"], [["ignored"]])
 
     assert props.device_name == "thermostat_4"
     server.update_thermostat.assert_called_once()

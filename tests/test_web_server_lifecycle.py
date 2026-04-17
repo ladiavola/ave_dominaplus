@@ -97,8 +97,8 @@ async def test_disconnect_cancels_tasks_and_closes_connections(
 
     ws_conn = FakeWSConnection()
     session = FakeClientSession(ws_conn=FakeWSConnection())
-    server._connect_actions_task = pending_connect_task
-    server._thermostat_fetch_task = pending_thermostat_task
+    server.connect_actions_task = pending_connect_task
+    server.thermostat_fetch_task = pending_thermostat_task
     server.ws_conn = ws_conn
     server._ws_session = session
     server._set_connected = Mock()

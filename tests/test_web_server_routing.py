@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
+from custom_components.ave_dominaplus import ws_routing
 from custom_components.ave_dominaplus.const import (
     AVE_FAMILY_ANTITHEFT_AREA,
     AVE_FAMILY_DIMMER,
@@ -52,7 +53,7 @@ def test_manage_upd_routes_onoff_to_switch_when_enabled(hass: HomeAssistant) -> 
     server = _new_server(hass, on_off_lights_as_switch=True)
     _wire_callbacks(server)
 
-    server.manage_upd(["WS", "1", "10", "1"], [])
+    ws_routing.manage_upd(server, ["WS", "1", "10", "1"], [])
 
     server.update_switch.assert_called_once_with(
         server, AVE_FAMILY_ONOFFLIGHTS, 10, 1, None
@@ -65,7 +66,7 @@ def test_manage_upd_routes_onoff_to_light_when_disabled(hass: HomeAssistant) -> 
     server = _new_server(hass, on_off_lights_as_switch=False)
     _wire_callbacks(server)
 
-    server.manage_upd(["WS", "1", "11", "0"], [])
+    ws_routing.manage_upd(server, ["WS", "1", "11", "0"], [])
 
     server.update_light.assert_called_once_with(
         server, AVE_FAMILY_ONOFFLIGHTS, 11, 0, None
@@ -78,7 +79,7 @@ def test_manage_upd_routes_dimmer_to_light(hass: HomeAssistant) -> None:
     server = _new_server(hass)
     _wire_callbacks(server)
 
-    server.manage_upd(["WS", "2", "3", "31"], [])
+    ws_routing.manage_upd(server, ["WS", "2", "3", "31"], [])
 
     server.update_light.assert_called_once_with(server, AVE_FAMILY_DIMMER, 3, 31, None)
 
@@ -88,7 +89,7 @@ def test_manage_upd_routes_cover_family_to_cover(hass: HomeAssistant) -> None:
     server = _new_server(hass)
     _wire_callbacks(server)
 
-    server.manage_upd(["WS", "3", "21", "2"], [])
+    ws_routing.manage_upd(server, ["WS", "3", "21", "2"], [])
 
     server.update_cover.assert_called_once_with(
         server, AVE_FAMILY_SHUTTER_ROLLING, 21, 2, None
@@ -100,7 +101,7 @@ def test_manage_upd_routes_scenario_to_binary_sensor(hass: HomeAssistant) -> Non
     server = _new_server(hass, fetch_scenarios=True)
     _wire_callbacks(server)
 
-    server.manage_upd(["WS", "6", "31", "1"], [])
+    ws_routing.manage_upd(server, ["WS", "6", "31", "1"], [])
 
     server.update_binary_sensor.assert_called_once_with(
         server, AVE_FAMILY_SCENARIO, 31, 1, None
@@ -112,8 +113,8 @@ def test_manage_upd_skips_ws_routes_when_lights_disabled(hass: HomeAssistant) ->
     server = _new_server(hass, fetch_lights=False)
     _wire_callbacks(server)
 
-    server.manage_upd(["WS", "1", "10", "1"], [])
-    server.manage_upd(["WS", "2", "10", "1"], [])
+    ws_routing.manage_upd(server, ["WS", "1", "10", "1"], [])
+    ws_routing.manage_upd(server, ["WS", "2", "10", "1"], [])
 
     server.update_switch.assert_not_called()
     server.update_light.assert_not_called()
@@ -124,7 +125,7 @@ def test_manage_upd_routes_antitheft_area(hass: HomeAssistant) -> None:
     server = _new_server(hass, fetch_sensor_areas=True)
     _wire_callbacks(server)
 
-    server.manage_upd(["X", "A", "7", "0", "0", "0", "1"], [])
+    ws_routing.manage_upd(server, ["X", "A", "7", "0", "0", "0", "1"], [])
 
     server.update_binary_sensor.assert_called_once_with(
         server, AVE_FAMILY_ANTITHEFT_AREA, 7, 0
@@ -136,7 +137,7 @@ def test_manage_upd_routes_antitheft_sensor(hass: HomeAssistant) -> None:
     server = _new_server(hass, fetch_sensors=True)
     _wire_callbacks(server)
 
-    server.manage_upd(["X", "S", "12", "0", "1"], [])
+    ws_routing.manage_upd(server, ["X", "S", "12", "0", "1"], [])
 
     server.update_binary_sensor.assert_called_once_with(
         server, AVE_FAMILY_MOTION_SENSOR, 12, 1
@@ -148,7 +149,7 @@ def test_manage_upd_routes_thermostat_offset_update(hass: HomeAssistant) -> None
     server = _new_server(hass)
     _wire_callbacks(server)
 
-    server.manage_upd(["WT", "O", "4", "12"], [])
+    ws_routing.manage_upd(server, ["WT", "O", "4", "12"], [])
 
     server.update_thermostat.assert_called_once()
     kwargs = server.update_thermostat.call_args.kwargs
@@ -172,7 +173,7 @@ def test_manage_upd_skips_tt_until_map_and_commands_loaded(hass: HomeAssistant) 
     server.ave_map.areas_loaded = False
     server.ave_map.command_loaded = False
 
-    server.manage_upd(["TT", "99", "205"], [])
+    ws_routing.manage_upd(server, ["TT", "99", "205"], [])
 
     server.update_thermostat.assert_not_called()
 
@@ -187,7 +188,7 @@ def test_manage_upd_routes_tt_when_map_and_command_ready(hass: HomeAssistant) ->
     server.ave_map.command_loaded = True
     server.ave_map.get_command_by_id_and_family = Mock(return_value=command)
 
-    server.manage_upd(["TT", "99", "205"], [])
+    ws_routing.manage_upd(server, ["TT", "99", "205"], [])
 
     server.update_thermostat.assert_called_once()
     kwargs = server.update_thermostat.call_args.kwargs
@@ -201,7 +202,7 @@ def test_manage_ldi_li2_routes_onoff_with_address(hass: HomeAssistant) -> None:
     server = _new_server(hass, on_off_lights_as_switch=True)
     _wire_callbacks(server)
 
-    server.manage_ldi_li2([], [["100", "Kitchen", "1", "15"]], "li2")
+    ws_routing.manage_ldi_li2(server, [], [["100", "Kitchen", "1", "15"]], "li2")
 
     server.update_switch.assert_called_once_with(
         server,
@@ -220,7 +221,7 @@ def test_manage_ldi_li2_routes_onoff_with_address(hass: HomeAssistant) -> None:
             "address_hex": "0F",
         }
     ]
-    assert server._ldi_done.is_set()
+    assert server.ldi_done.is_set()
 
 
 def test_manage_ldi_li2_routes_scenario_button_and_sensor(hass: HomeAssistant) -> None:
@@ -228,7 +229,7 @@ def test_manage_ldi_li2_routes_scenario_button_and_sensor(hass: HomeAssistant) -
     server = _new_server(hass)
     _wire_callbacks(server)
 
-    server.manage_ldi_li2([], [["200", "Evening", "6", "21"]], "li2")
+    ws_routing.manage_ldi_li2(server, [], [["200", "Evening", "6", "21"]], "li2")
 
     server.update_button.assert_called_once_with(
         server,
@@ -253,12 +254,12 @@ def test_manage_ldi_li2_handles_bad_records_without_raising(
     server = _new_server(hass)
     _wire_callbacks(server)
 
-    server.manage_ldi_li2([], [["bad-record"]], "li2")
+    ws_routing.manage_ldi_li2(server, [], [["bad-record"]], "li2")
 
     server.update_switch.assert_not_called()
     server.update_light.assert_not_called()
     server.update_cover.assert_not_called()
-    assert server._ldi_done.is_set()
+    assert server.ldi_done.is_set()
 
 
 async def test_manage_incoming_messages_routes_ping_to_pong(
@@ -278,11 +279,11 @@ def test_manage_upd_handles_all_unhandled_upd(hass, caplog) -> None:
     server = _new_server(hass)
     _wire_callbacks(server)
 
-    server.manage_ldi_li2([], [["bad-record"]], "li2")
+    ws_routing.manage_ldi_li2(server, [], [["bad-record"]], "li2")
 
     for key in AVE_UNHANDLED_UPD:
         # manage_upd expects a parameters list where parameters[0] is the UPD key
-        server.manage_upd([key], [])
+        ws_routing.manage_upd(server, [key], [])
 
         server.update_binary_sensor.assert_not_called()
         server.update_thermostat.assert_not_called()
