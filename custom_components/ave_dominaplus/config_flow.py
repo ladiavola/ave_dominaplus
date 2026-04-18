@@ -31,8 +31,24 @@ def _build_step_user_data_schema(defaults: dict[str, Any] | None = None) -> vol.
                 default=defaults.get(CONF_IP_ADDRESS, "192.168.1.10"),
             ): str,
             vol.Required(
-                "get_entities_names",
-                default=defaults.get("get_entities_names", True),
+                "fetch_lights",
+                default=defaults.get("fetch_lights", True),
+            ): bool,
+            vol.Required(
+                "on_off_lights_as_switch",
+                default=defaults.get("on_off_lights_as_switch", True),
+            ): bool,
+            vol.Required(
+                "fetch_thermostats",
+                default=defaults.get("fetch_thermostats", True),
+            ): bool,
+            vol.Required(
+                "fetch_covers",
+                default=defaults.get("fetch_covers", True),
+            ): bool,
+            vol.Required(
+                "fetch_scenarios",
+                default=defaults.get("fetch_scenarios", True),
             ): bool,
             vol.Required(
                 "fetch_sensor_areas",
@@ -43,12 +59,8 @@ def _build_step_user_data_schema(defaults: dict[str, Any] | None = None) -> vol.
                 default=defaults.get("fetch_sensors", True),
             ): bool,
             vol.Required(
-                "fetch_lights",
-                default=defaults.get("fetch_lights", True),
-            ): bool,
-            vol.Required(
-                "fetch_thermostats",
-                default=defaults.get("fetch_thermostats", True),
+                "get_entities_names",
+                default=defaults.get("get_entities_names", True),
             ): bool,
         }
     )
@@ -115,7 +127,10 @@ class AveWsConfigFlow(ConfigFlow, domain=DOMAIN):
             "fetch_sensor_areas": True,
             "fetch_sensors": True,
             "fetch_lights": True,
+            "fetch_covers": True,
+            "fetch_scenarios": True,
             "fetch_thermostats": True,
+            "on_off_lights_as_switch": True,
         }
         self._async_abort_entries_match({CONF_IP_ADDRESS: user_input[CONF_IP_ADDRESS]})
 

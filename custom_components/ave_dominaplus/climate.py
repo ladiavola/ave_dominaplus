@@ -18,15 +18,22 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PRECISION_TENTHS, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
+from . import ws_commands
 from .ave_map import AveMapCommand
 from .ave_thermostat import AveThermostatProperties
-from .const import AVE_FAMILY_THERMOSTAT, BRAND_PREFIX
+from .const import AVE_FAMILY_THERMOSTAT
+from .device_info import (
+    build_endpoint_device_info,
+    ensure_thermostats_parent_device,
+    sync_device_registry_name,
+)
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
+PARALLEL_UPDATES = 1
 
 PRESET_SCHEDULE = "Schedule"
 PRESET_MANUAL = "Manual"
@@ -53,6 +60,9 @@ async def async_setup_entry(
 
     await webserver.set_async_add_th_entities(async_add_entities)
     await webserver.set_update_thermostat(update_thermostat)
+
+    ensure_thermostats_parent_device(webserver, entry.entry_id)
+
     await adopt_existing_sensors(webserver, entry)
     if not webserver.settings.fetch_thermostats:
         return
@@ -115,6 +125,7 @@ def update_thermostat(
     command: AveMapCommand | None = None,
     properties: AveThermostatProperties | None = None,
     ave_device_id: int | None = None,
+    address_dec: int | None = None,
 ) -> None:
     """Update thermostat from WS records."""
     if properties is not None and ave_device_id is not None:
@@ -124,6 +135,7 @@ def update_thermostat(
             family=AVE_FAMILY_THERMOSTAT,
             ave_device_id=properties.device_id,
             properties=properties,
+            address_dec=address_dec,
         )
     if command is not None:
         # Updates from WTS that uses command ids as identifiers
@@ -135,6 +147,7 @@ def update_thermostat(
                     ave_device_id=command.device_id,
                     property_name="temperature",
                     property_value=int(parameters[2]) / 10,
+                    address_dec=address_dec,
                 )
             case "TL":
                 _update_thermostat(
@@ -143,6 +156,7 @@ def update_thermostat(
                     ave_device_id=command.device_id,
                     property_name="fan_level",
                     property_value=int(parameters[2]),
+                    address_dec=address_dec,
                 )
             case "TLO":
                 _update_thermostat(
@@ -151,6 +165,7 @@ def update_thermostat(
                     ave_device_id=command.device_id,
                     property_name="local_off",
                     property_value=(1 if int(parameters[2]) == 0 else 0),
+                    address_dec=address_dec,
                 )
             case "TO":
                 _update_thermostat(
@@ -159,6 +174,7 @@ def update_thermostat(
                     ave_device_id=command.device_id,
                     property_name="offset",
                     property_value=int(parameters[2]),
+                    address_dec=address_dec,
                 )
             case "TS":
                 _update_thermostat(
@@ -167,6 +183,7 @@ def update_thermostat(
                     ave_device_id=command.device_id,
                     property_name="season",
                     property_value=parameters[2],
+                    address_dec=address_dec,
                 )
     elif parameters[0] == "WT":
         match parameters[1]:
@@ -177,6 +194,7 @@ def update_thermostat(
                     ave_device_id=int(parameters[2]),
                     property_name="offset",
                     property_value=int(parameters[3]) / 10,
+                    address_dec=address_dec,
                 )
             case "S":
                 _update_thermostat(
@@ -185,6 +203,7 @@ def update_thermostat(
                     ave_device_id=int(parameters[2]),
                     property_name="season",
                     property_value=parameters[3],
+                    address_dec=address_dec,
                 )
             case "T":
                 _update_thermostat(
@@ -193,6 +212,7 @@ def update_thermostat(
                     ave_device_id=int(parameters[2]),
                     property_name="temperature",
                     property_value=int(parameters[3]) / 10,
+                    address_dec=address_dec,
                 )
             case "L":
                 _update_thermostat(
@@ -201,6 +221,7 @@ def update_thermostat(
                     ave_device_id=int(parameters[2]),
                     property_name="fan_level",
                     property_value=int(parameters[3]),
+                    address_dec=address_dec,
                 )
             case "Z":
                 _update_thermostat(
@@ -209,6 +230,7 @@ def update_thermostat(
                     ave_device_id=int(parameters[2]),
                     property_name="local_off",
                     property_value=int(parameters[3]),
+                    address_dec=address_dec,
                 )
     elif parameters[0] == "TM":
         _update_thermostat(
@@ -217,6 +239,7 @@ def update_thermostat(
             ave_device_id=int(parameters[1]),
             property_name="mode",
             property_value=parameters[2],
+            address_dec=address_dec,
         )
     elif parameters[0] == "TW":
         _update_thermostat(
@@ -225,6 +248,7 @@ def update_thermostat(
             ave_device_id=int(parameters[1]),
             property_name="window_state",
             property_value=parameters[2],
+            address_dec=address_dec,
         )
     elif parameters[0] == "TP":
         _update_thermostat(
@@ -233,6 +257,7 @@ def update_thermostat(
             ave_device_id=int(parameters[1]),
             property_name="set_point",
             property_value=int(parameters[2]) / 10,
+            address_dec=address_dec,
         )
 
 
@@ -243,6 +268,7 @@ def _update_thermostat(
     properties: AveThermostatProperties | None = None,
     property_name: str | None = None,
     property_value: Any = None,
+    address_dec: int | None = None,
 ) -> None:
     """Create or update thermostat based on incoming data from webserver."""
 
@@ -263,6 +289,8 @@ def _update_thermostat(
                     thermostat.set_name(properties.device_name)
         elif property_name is not None and property_value is not None:
             thermostat.update_specific_property(property_name, property_value)
+        if address_dec is not None:
+            thermostat.set_address_dec(address_dec)
     else:
         if properties is None:
             _LOGGER.debug(
@@ -288,6 +316,7 @@ def _update_thermostat(
             ave_properties=properties,
             webserver=server,
             name=entity_name,
+            address_dec=address_dec,
         )
 
         _LOGGER.info("Creating new thermostat entity %s", entity_name)
@@ -317,6 +346,7 @@ def check_name_changed(hass: HomeAssistant, unique_id: str) -> bool:
 class AveThermostat(ClimateEntity):
     """Representation of a thermostat controller."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
 
     _attr_supported_features = (
@@ -346,6 +376,7 @@ class AveThermostat(ClimateEntity):
         ave_properties: AveThermostatProperties,
         webserver: AveWebServer,
         name: str | None = None,
+        address_dec: int | None = None,
     ) -> None:
         """Initialize the thermostat sensor."""
         self._unique_id = unique_id
@@ -353,6 +384,13 @@ class AveThermostat(ClimateEntity):
         self.family = family
         self._webserver = webserver
         self.hass = self._webserver.hass
+        thermostat_name = name or ave_properties.device_name
+        self._attr_device_info = build_endpoint_device_info(
+            webserver,
+            family,
+            ave_properties.device_id,
+            ave_name=thermostat_name,
+        )
         self.ave_properties: AveThermostatProperties = ave_properties
         self.ave_name = ""
         if name is not None:
@@ -363,8 +401,20 @@ class AveThermostat(ClimateEntity):
             self._name = ave_properties.device_name
             self.ave_name = ave_properties.device_name
 
+        self._address_dec = address_dec
+
         self._selected_schedule = None
         self.update_all_properties(ave_properties, first_update=True)
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity added to Home Assistant."""
+        await super().async_added_to_hass()
+        self._webserver.register_availability_entity(self)
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Handle entity removal from Home Assistant."""
+        self._webserver.unregister_availability_entity(self)
+        await super().async_will_remove_from_hass()
 
     def update_from_wts(self, parameters: list[str], records: list[list[str]]):
         """Update the thermostat properties from WTS data."""
@@ -493,8 +543,8 @@ class AveThermostat(ClimateEntity):
         parameters = [str(self.ave_properties.device_id)]
         records = [[season, 1, int(temperature * 10)]]
         if self._webserver:
-            await self._webserver.send_thermostat_sts(
-                parameters=parameters, records=records
+            await ws_commands.send_thermostat_sts(
+                self._webserver, parameters=parameters, records=records
             )
 
     async def async_set_fan_mode(self, fan_mode) -> None:
@@ -532,21 +582,21 @@ class AveThermostat(ClimateEntity):
         _mode = 1 if preset_mode == PRESET_MANUAL else 0
         records = [[season, _mode, int(self._attr_target_temperature * 10)]]
         if self._webserver:
-            await self._webserver.send_thermostat_sts(
-                parameters=parameters, records=records
+            await ws_commands.send_thermostat_sts(
+                self._webserver, parameters=parameters, records=records
             )
 
     async def async_set_hvac_mode(self, hvac_mode) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.OFF:
-            await self._webserver.thermostat_on_off(
-                device_id=self.ave_properties.device_id, on_off=0
+            await ws_commands.thermostat_on_off(
+                self._webserver, device_id=self.ave_properties.device_id, on_off=0
             )
         elif hvac_mode in {HVACMode.HEAT, HVACMode.COOL}:
             # TODO Tries to turn on the thermostat if it's currently off, needs testing
             if self.hvac_mode == HVACMode.OFF:
-                await self._webserver.thermostat_on_off(
-                    device_id=self.ave_properties.device_id, on_off=1
+                await ws_commands.thermostat_on_off(
+                    self._webserver, device_id=self.ave_properties.device_id, on_off=1
                 )
                 await asyncio.sleep(1)
 
@@ -561,20 +611,20 @@ class AveThermostat(ClimateEntity):
             _mode = 1 if self._attr_preset_mode == PRESET_MANUAL else 0
             records = [[season, _mode, int(self._attr_target_temperature * 10)]]
             if self._webserver:
-                await self._webserver.send_thermostat_sts(
-                    parameters=parameters, records=records
+                await ws_commands.send_thermostat_sts(
+                    self._webserver, parameters=parameters, records=records
                 )
 
     async def async_turn_on(self) -> None:
         """Turn the entity on."""
-        await self._webserver.thermostat_on_off(
-            device_id=self.ave_properties.device_id, on_off=1
+        await ws_commands.thermostat_on_off(
+            self._webserver, device_id=self.ave_properties.device_id, on_off=1
         )
 
     async def async_turn_off(self) -> None:
         """Turn the entity off."""
-        await self._webserver.thermostat_on_off(
-            device_id=self.ave_properties.device_id, on_off=0
+        await ws_commands.thermostat_on_off(
+            self._webserver, device_id=self.ave_properties.device_id, on_off=0
         )
 
     @property
@@ -588,6 +638,11 @@ class AveThermostat(ClimateEntity):
         return self._name
 
     @property
+    def available(self) -> bool:
+        """Return if the backing webserver connection is available."""
+        return self._webserver.connected
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional state attributes."""
         return {
@@ -598,6 +653,10 @@ class AveThermostat(ClimateEntity):
             "AVE webserver MAC": self._webserver.mac_address
             if self._webserver
             else None,
+            "AVE address_dec": self._address_dec,
+            "AVE address_hex": format(self._address_dec & 0xFF, "02X")
+            if self._address_dec is not None
+            else "",
         }
 
     def update_ave_properties(self, properties: AveThermostatProperties) -> None:
@@ -615,10 +674,39 @@ class AveThermostat(ClimateEntity):
         if name is None:
             return
         self._name = name
+        self._sync_device_name(name)
         self.async_write_ha_state()
+
+    def _sync_device_name(self, name: str) -> None:
+        """Sync thermostat device name unless user customized it in HA."""
+        if self.hass is None:
+            return
+
+        updated_device_info = build_endpoint_device_info(
+            self._webserver,
+            self.family,
+            self.ave_properties.device_id,
+            ave_name=name,
+        )
+        identifiers = self._attr_device_info.get("identifiers")
+        if not identifiers:
+            return
+
+        sync_device_registry_name(
+            self.hass,
+            updated_device_info,
+            identifiers=identifiers,
+            device_registry_getter=dr.async_get,
+        )
+
+        self._attr_device_info = updated_device_info
+
+    def set_address_dec(self, address_dec: int | None) -> None:
+        """Set the address_dec attribute of the sensor."""
+        if address_dec is not None and self._address_dec != address_dec:
+            self._address_dec = address_dec
+            self.async_write_ha_state()
 
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
-        suffix = "thermostat"
-        mac = self._webserver.mac_address if self._webserver else "unknown"
-        return f"{BRAND_PREFIX} {mac} {suffix} {self.ave_properties.device_id}"
+        return f"Thermostat {self.ave_properties.device_id}"

@@ -10,10 +10,17 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .const import AVE_FAMILY_SCENARIO, AVE_FAMILY_SWITCH, BRAND_PREFIX
+from . import ws_commands
+from .const import AVE_FAMILY_ONOFFLIGHTS, AVE_FAMILY_SCENARIO
+from .device_info import (
+    build_endpoint_device_info,
+    ensure_lighting_parent_device,
+    sync_device_registry_name,
+)
 from .web_server import AveWebServer
 
 _LOGGER = logging.getLogger(__name__)
+PARALLEL_UPDATES = 1
 
 
 async def async_setup_entry(
@@ -39,6 +46,7 @@ async def async_setup_entry(
     await webserver.set_update_switch(update_switch)
     if not webserver.settings.fetch_lights:
         return
+    ensure_lighting_parent_device(webserver, entry.entry_id)
     await adopt_existing_sensors(webserver, entry)
 
 
@@ -94,10 +102,15 @@ def set_sensor_uid(webserver: AveWebServer, family, ave_device_id) -> str:
 
 
 def update_switch(
-    server: AveWebServer, family, ave_device_id, device_status, name=None
+    server: AveWebServer,
+    family,
+    ave_device_id,
+    device_status,
+    name=None,
+    address_dec=None,
 ) -> None:
     """Update switch based on the family and device status."""
-    if family == AVE_FAMILY_SWITCH:
+    if family == AVE_FAMILY_ONOFFLIGHTS:
         if not server.settings.fetch_lights:
             return
     else:
@@ -121,6 +134,8 @@ def update_switch(
             switch.set_ave_name(name)
             if not check_name_changed(server.hass, unique_id):
                 switch.set_name(name)
+        if address_dec is not None:
+            switch.set_address_dec(address_dec)
     else:
         # Create a new switch sensor
         entity_name = None
@@ -137,6 +152,7 @@ def update_switch(
             webserver=server,
             name=entity_name,
             ave_name=entity_ave_name,
+            address_dec=address_dec,
         )
 
         _LOGGER.info("Creating new switch entity %s, unique_id %s", name, unique_id)
@@ -164,6 +180,7 @@ def check_name_changed(hass: HomeAssistant, unique_id: str) -> bool:
 class LightSwitch(SwitchEntity):
     """Representation of a light switch."""
 
+    _attr_has_entity_name = True
     _attr_should_poll = False
 
     def __init__(
@@ -175,6 +192,7 @@ class LightSwitch(SwitchEntity):
         webserver: AveWebServer,
         name=None,
         ave_name: str | None = None,
+        address_dec: int | None = None,
     ) -> None:
         """Initialize the motion detection sensor."""
         self._unique_id = unique_id
@@ -183,7 +201,15 @@ class LightSwitch(SwitchEntity):
         self.family = family
         self._webserver = webserver
         self._ave_name = ave_name
+        self._address_dec = address_dec
         self.hass = self._webserver.hass
+        self._pending_state_write = False
+        self._attr_device_info = build_endpoint_device_info(
+            webserver,
+            family,
+            ave_device_id,
+            ave_name=ave_name,
+        )
 
         if is_on is not None and is_on >= 0:
             self._attr_is_on = bool(is_on)  # Initialize the state
@@ -193,20 +219,34 @@ class LightSwitch(SwitchEntity):
         else:
             self._name = name
 
+    async def async_added_to_hass(self) -> None:
+        """Handle entity added to Home Assistant."""
+        await super().async_added_to_hass()
+        self._webserver.register_availability_entity(self)
+        self._sync_device_info()
+        if self._pending_state_write:
+            self._pending_state_write = False
+            self.async_write_ha_state()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Handle entity removal from Home Assistant."""
+        self._webserver.unregister_availability_entity(self)
+        await super().async_will_remove_from_hass()
+
     async def async_toggle(self, **kwargs: Any) -> None:
         """Toggle the switch."""
         if self._webserver:
-            await self._webserver.switch_toggle(self.ave_device_id)
+            await ws_commands.switch_toggle(self._webserver, self.ave_device_id)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
         if self._webserver:
-            await self._webserver.switch_turn_on(self.ave_device_id)
+            await ws_commands.switch_turn_on(self._webserver, self.ave_device_id)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
         if self._webserver:
-            await self._webserver.switch_turn_off(self.ave_device_id)
+            await ws_commands.switch_turn_off(self._webserver, self.ave_device_id)
 
     @property
     def unique_id(self) -> str:
@@ -217,6 +257,11 @@ class LightSwitch(SwitchEntity):
     def name(self) -> str:
         """Return the name of the sensor."""
         return self._name
+
+    @property
+    def available(self) -> bool:
+        """Return if the backing webserver connection is available."""
+        return self._webserver.connected
 
     @property
     def device_class(self) -> SwitchDeviceClass | None:
@@ -230,6 +275,10 @@ class LightSwitch(SwitchEntity):
             "AVE_family": self.family,
             "AVE_device_id": self.ave_device_id,
             "AVE_name": self._ave_name,
+            "AVE address_dec": self._address_dec,
+            "AVE address_hex": format(self._address_dec & 0xFF, "02X")
+            if self._address_dec is not None
+            else "",
             "AVE webserver MAC": self._webserver.mac_address
             if self._webserver
             else None,
@@ -242,26 +291,51 @@ class LightSwitch(SwitchEntity):
         if is_on < 0:
             return
         self._attr_is_on = bool(is_on)  # Set the state to True (on) or False (off)
-        self.async_write_ha_state()
+        self._write_state_or_defer()
 
     def set_name(self, name: str | None) -> None:
         """Set the name of the sensor."""
         if name is None:
             return
         self._name = name
-        self.async_write_ha_state()
+        self._write_state_or_defer()
 
     def set_ave_name(self, name: str | None) -> None:
         """Set the AVE name of the sensor."""
         if name is not None:
             self._ave_name = name
-            self.async_write_ha_state()
+            self._sync_device_info(name)
+            self._write_state_or_defer()
+
+    def _sync_device_info(self, ave_name: str | None = None) -> None:
+        """Sync device registry metadata for this light switch endpoint."""
+        updated_device_info = build_endpoint_device_info(
+            self._webserver,
+            self.family,
+            self.ave_device_id,
+            ave_name=ave_name if ave_name is not None else self._ave_name,
+        )
+        self._attr_device_info = updated_device_info
+        sync_device_registry_name(self.hass, updated_device_info)
+
+    def set_address_dec(self, address_dec: int | None) -> None:
+        """Set the address_dec attribute of the sensor."""
+        if address_dec is not None and self._address_dec != address_dec:
+            self._address_dec = address_dec
+            self._write_state_or_defer()
+
+    def _write_state_or_defer(self) -> None:
+        """Write state now when possible, otherwise defer until entity attach."""
+        if self.hass is None or self.entity_id is None:
+            self._pending_state_write = True
+            return
+        self.async_write_ha_state()
 
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
-        suffix = "sensor type " + str(self.family)
-        if self.family == AVE_FAMILY_SWITCH:
-            suffix = "light"
+        suffix = f"Switch {self.family}"
+        if self.family == AVE_FAMILY_ONOFFLIGHTS:
+            suffix = "Light"
         elif self.family == AVE_FAMILY_SCENARIO:
-            suffix = "scenario"
-        return f"{BRAND_PREFIX} {suffix} {self.ave_device_id}"
+            suffix = "Scenario"
+        return f"{suffix} {self.ave_device_id}"

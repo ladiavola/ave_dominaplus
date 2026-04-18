@@ -561,6 +561,7 @@ split-on-trailing-comma = false
 "homeassistant/auth/*/*" = ["TID252"]
 "homeassistant/components/*/*/*" = ["TID252"]
 "tests/components/*/*/*" = ["TID252"]
+"custom_components/ave_dominaplus/*" = ["TID252"]
 
 # Temporary
 "homeassistant/**" = ["PTH"]
