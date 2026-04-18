@@ -96,5 +96,28 @@
       "not_ave_webserver": "Discovered device is not an AVE webserver",
       "unknown": "[%key:common::config_flow::error::unknown%]"
     }
+  },
+  "device": {
+    "hub": {
+      "name": "Dominaplus Hub"
+    },
+    "lighting": {
+      "name": "Dominaplus Lighting"
+    },
+    "covers": {
+      "name": "Dominaplus Covers"
+    },
+    "thermostats": {
+      "name": "Dominaplus Thermostats"
+    },
+    "antitheft_sensors": {
+      "name": "Dominaplus Antitheft Sensors"
+    },
+    "antitheft_areas": {
+      "name": "Dominaplus Antitheft Areas"
+    },
+    "scenarios": {
+      "name": "Dominaplus Scenarios"
+    }
   }
 }

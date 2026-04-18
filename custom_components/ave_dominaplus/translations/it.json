@@ -90,5 +90,28 @@
       "not_ave_webserver": "Il dispositivo scoperto non è un webserver AVE",
       "unknown": "Errore sconosciuto"
     }
+  },
+  "device": {
+    "hub": {
+      "name": "Hub Dominaplus"
+    },
+    "lighting": {
+      "name": "Luci Dominaplus"
+    },
+    "covers": {
+      "name": "Tapparelle Dominaplus"
+    },
+    "thermostats": {
+      "name": "Termostati Dominaplus"
+    },
+    "antitheft_sensors": {
+      "name": "Sensori Antifurto Dominaplus"
+    },
+    "antitheft_areas": {
+      "name": "Aree Antifurto Dominaplus"
+    },
+    "scenarios": {
+      "name": "Scenari Dominaplus"
+    }
   }
 }
