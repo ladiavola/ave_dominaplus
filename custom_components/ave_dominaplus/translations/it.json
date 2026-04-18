@@ -93,25 +93,25 @@
   },
   "device": {
     "hub": {
-      "name": "Hub Dominaplus"
+      "name": "Dominaplus Hub"
     },
     "lighting": {
-      "name": "Luci Dominaplus"
+      "name": "Dominaplus Luci"
     },
     "covers": {
-      "name": "Tapparelle Dominaplus"
+      "name": "Dominaplus Serramenti"
     },
     "thermostats": {
-      "name": "Termostati Dominaplus"
+      "name": "Dominaplus Termoregolazione"
     },
     "antitheft_sensors": {
-      "name": "Sensori Antifurto Dominaplus"
+      "name": "Dominaplus Sensori Antintrusione"
     },
     "antitheft_areas": {
-      "name": "Aree Antifurto Dominaplus"
+      "name": "Dominaplus Aree Antintrusione"
     },
     "scenarios": {
-      "name": "Scenari Dominaplus"
+      "name": "Dominaplus Scenari"
     }
   }
 }
