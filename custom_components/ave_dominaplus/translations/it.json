@@ -113,5 +113,15 @@
     "scenarios": {
       "name": "Dominaplus Scenari"
     }
+  },
+  "entity": {
+    "binary_sensor": {
+      "antitheft_area": {
+        "name": "Area Antintrusione {id}"
+      },
+      "antitheft_sensor": {
+        "name": "Sensore Antintrusione {id}"
+      }
+    }
   }
 }
