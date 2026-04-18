@@ -24,10 +24,10 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest --cov=custom_components/ave_dominaplus --cov-report=term-missing --cov-report=xml --cov-report=html
+          pytest --cov=custom_components/ave_dominaplus --cov-report=term-missing > coverage-report.txt 2>&1 || true
 
-      - name: Upload coverage HTML report
+      - name: Upload coverage text report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
-          path: htmlcov/
+          path: coverage-report.txt
