@@ -348,11 +348,19 @@ class MotionBinarySensor(BinarySensorEntity):
             webserver, family, ave_device_id
         )
 
+        self._attr_family = family
+        self._name = None
         if name is None:
-            self._name = self.build_name()
+            if self.family == AVE_FAMILY_ANTITHEFT_AREA:
+                self._attr_translation_key = "antitheft_area"
+                self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
+            elif self.family == AVE_FAMILY_MOTION_SENSOR:
+                self._attr_translation_key = "antitheft_sensor"
+                self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
+            else:
+                self._name = self.build_name()
         else:
             self._name = name
-        self._attr_family = family
 
     async def async_added_to_hass(self) -> None:
         """Handle entity added to Home Assistant."""
@@ -370,7 +378,7 @@ class MotionBinarySensor(BinarySensorEntity):
         return self._unique_id
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         """Return the name of the sensor."""
         return self._name
 
@@ -499,7 +507,7 @@ class ScenarioRunningBinarySensor(BinarySensorEntity):
         return self._unique_id
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         """Return the name of the sensor."""
         return self._name
 
