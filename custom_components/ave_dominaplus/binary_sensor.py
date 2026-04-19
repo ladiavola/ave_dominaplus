@@ -444,12 +444,7 @@ class MotionBinarySensor(BinarySensorEntity):
 
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
-        suffix = f"Sensor {self.family}"
-        if self.family == AVE_FAMILY_ANTITHEFT_AREA:
-            suffix = "Antitheft Area"
-        elif self.family == AVE_FAMILY_MOTION_SENSOR:
-            suffix = "Antitheft Sensor"
-        return f"{suffix} {self.ave_device_id}"
+        return f"Sensor {self.family} {self.ave_device_id}"
 
 
 class ScenarioRunningBinarySensor(BinarySensorEntity):
