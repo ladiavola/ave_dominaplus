@@ -9,6 +9,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import data_entry_flow
+
 try:
     from homeassistant.components.zeroconf import ZeroconfServiceInfo
 except ImportError:

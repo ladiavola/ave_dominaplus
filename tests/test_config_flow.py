@@ -16,6 +16,7 @@ from custom_components.ave_dominaplus.config_flow import (
 )
 from custom_components.ave_dominaplus.const import DOMAIN
 from homeassistant import config_entries, data_entry_flow
+
 try:
     from homeassistant.components.zeroconf import ZeroconfServiceInfo
 except ImportError:
