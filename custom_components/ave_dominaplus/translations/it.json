@@ -105,10 +105,10 @@
       "name": "Dominaplus Termoregolazione"
     },
     "antitheft_sensors": {
-      "name": "Dominaplus Sensori Antintrusione"
+      "name": "Sensore Antintrusione Dominaplus {id}"
     },
     "antitheft_areas": {
-      "name": "Dominaplus Aree Antintrusione"
+      "name": "Area Antintrusione Dominaplus {id}"
     },
     "scenarios": {
       "name": "Dominaplus Scenari"
@@ -117,7 +117,10 @@
   "entity": {
     "binary_sensor": {
       "antitheft_sensor": {
-        "name": "Sensore Antintrusione {id}"
+        "name": "Sensore"
+      },
+      "antitheft_area": {
+        "name": "Area"
       },
       "scenario_running": {
         "name": "Esecuzione Scenario {id}"

@@ -353,7 +353,8 @@ class MotionBinarySensor(BinarySensorEntity):
         if name is None:
             if self.family == AVE_FAMILY_MOTION_SENSOR:
                 self._attr_translation_key = "antitheft_sensor"
-                self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
+            elif self.family == AVE_FAMILY_ANTITHEFT_AREA:
+                self._attr_translation_key = "antitheft_area"
             else:
                 self._name = self.build_name()
         else:
