@@ -351,10 +351,7 @@ class MotionBinarySensor(BinarySensorEntity):
         self._attr_family = family
         self._name = None
         if name is None:
-            if self.family == AVE_FAMILY_ANTITHEFT_AREA:
-                self._attr_translation_key = "antitheft_area"
-                self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
-            elif self.family == AVE_FAMILY_MOTION_SENSOR:
+            if self.family == AVE_FAMILY_MOTION_SENSOR:
                 self._attr_translation_key = "antitheft_sensor"
                 self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
             else:
@@ -444,7 +441,12 @@ class MotionBinarySensor(BinarySensorEntity):
 
     def build_name(self) -> str:
         """Build the name of the sensor based on its family and device ID."""
-        return f"Sensor {self.family} {self.ave_device_id}"
+        suffix = f"Sensor {self.family}"
+        if self.family == AVE_FAMILY_ANTITHEFT_AREA:
+            suffix = "Antitheft Area"
+        elif self.family == AVE_FAMILY_MOTION_SENSOR:
+            suffix = "Antitheft Sensor"
+        return f"{suffix} {self.ave_device_id}"
 
 
 class ScenarioRunningBinarySensor(BinarySensorEntity):
