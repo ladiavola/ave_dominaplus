@@ -37,7 +37,7 @@ class FakeWSMessage:
 class FakeWSConnection:
     """Simple async websocket connection fake."""
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         messages: list[Any] | None = None,
         *,
@@ -77,7 +77,7 @@ class FakeWSConnection:
 class FakeClientSession:
     """Minimal aiohttp ClientSession fake for websocket auth tests."""
 
-    def __init__(
+    def __init__(  # noqa: D107
         self,
         ws_conn: FakeWSConnection | None = None,
         *,

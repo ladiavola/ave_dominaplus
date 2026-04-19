@@ -19,7 +19,8 @@ from custom_components.ave_dominaplus.climate import (
 )
 from custom_components.ave_dominaplus.const import AVE_FAMILY_THERMOSTAT
 from homeassistant.exceptions import ConfigEntryNotReady
-from tests.web_server_harness import make_server
+
+from .web_server_harness import make_server
 
 
 def _entry(runtime_data, entry_id: str = "entry-1"):
@@ -204,7 +205,7 @@ async def test_thermostat_entity_edge_paths_and_lifecycle(hass) -> None:
 
     assert thermostat.unique_id == "uid"
     assert thermostat.translation_key == "thermostat"
-    
+
     assert thermostat.available is False
 
     with (

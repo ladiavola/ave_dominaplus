@@ -9,11 +9,11 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import data_entry_flow
+from homeassistant.components.zeroconf import ZeroconfServiceInfo
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import format_mac
-from homeassistant.components.zeroconf import ZeroconfServiceInfo
 
 from .const import DOMAIN
 from .web_server import AveWebServer
