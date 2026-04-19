@@ -277,8 +277,17 @@ class AveCover(CoverEntity):
 
         self._attr_device_class = CoverDeviceClass.SHUTTER
 
+        self._name = None
         if name is None:
-            self._name = self.build_name()
+            if self.family == AVE_FAMILY_SHUTTER_ROLLING:
+                self._attr_translation_key = "shutter"
+            elif self.family == AVE_FAMILY_SHUTTER_SLIDING:
+                self._attr_translation_key = "blind"
+            elif self.family == AVE_FAMILY_SHUTTER_HUNG:
+                self._attr_translation_key = "window"
+            else:
+                self._attr_translation_key = "cover"
+            self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
         else:
             self._name = name
 
@@ -351,7 +360,7 @@ class AveCover(CoverEntity):
         return self._unique_id
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         """Return the name of the entity."""
         return self._name
 

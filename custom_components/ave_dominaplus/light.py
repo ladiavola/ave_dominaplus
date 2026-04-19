@@ -258,8 +258,13 @@ class DimmerLight(LightEntity):
             self._attr_supported_color_modes = {ColorMode.ONOFF}
             self._attr_color_mode = ColorMode.ONOFF
 
+        self._name = None
         if name is None:
-            self._name = self.build_name()
+            if self.family == AVE_FAMILY_ONOFFLIGHTS:
+                self._attr_translation_key = "light"
+            else:
+                self._attr_translation_key = "dimmer"
+            self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
         else:
             self._name = name
 
@@ -350,7 +355,7 @@ class DimmerLight(LightEntity):
         return self._unique_id
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         """Return the name of the entity."""
         return self._name
 

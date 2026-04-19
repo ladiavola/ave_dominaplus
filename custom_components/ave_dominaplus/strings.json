@@ -124,6 +124,57 @@
     "binary_sensor": {
       "antitheft_sensor": {
         "name": "Antitheft Sensor {id}"
+      },
+      "scenario_running": {
+        "name": "Scenario {id} Running"
+      }
+    },
+    "button": {
+      "scenario_run": {
+        "name": "Scenario {id} Run"
+      }
+    },
+    "light": {
+      "light": {
+        "name": "Light {id}"
+      },
+      "dimmer": {
+        "name": "Dimmer {id}"
+      }
+    },
+    "cover": {
+      "shutter": {
+        "name": "Shutter {id}"
+      },
+      "blind": {
+        "name": "Blind {id}"
+      },
+      "window": {
+        "name": "Window {id}"
+      },
+      "cover": {
+        "name": "Cover {id}"
+      }
+    },
+    "climate": {
+      "thermostat": {
+        "name": "Thermostat {id}"
+      }
+    },
+    "switch": {
+      "light_switch": {
+        "name": "Light {id}"
+      },
+      "scenario_switch": {
+        "name": "Scenario {id}"
+      },
+      "generic_switch": {
+        "name": "Switch {family} {id}"
+      }
+    },
+    "sensor": {
+      "thermostat_offset": {
+        "name": "Thermostat Offset {id}"
       }
     }
   }

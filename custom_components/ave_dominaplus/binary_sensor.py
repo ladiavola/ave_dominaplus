@@ -483,8 +483,10 @@ class ScenarioRunningBinarySensor(BinarySensorEntity):
             ave_name=ave_name,
         )
 
+        self._name = None
         if name is None:
-            self._name = self.build_name()
+            self._attr_translation_key = "scenario_running"
+            self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
         else:
             self._name = name
 

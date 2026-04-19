@@ -214,8 +214,21 @@ class LightSwitch(SwitchEntity):
         if is_on is not None and is_on >= 0:
             self._attr_is_on = bool(is_on)  # Initialize the state
 
+        self._name = None
         if name is None:
-            self._name = self.build_name()
+            if self.family == AVE_FAMILY_ONOFFLIGHTS:
+                self._attr_translation_key = "light_switch"
+            elif self.family == AVE_FAMILY_SCENARIO:
+                self._attr_translation_key = "scenario_switch"
+            else:
+                self._attr_translation_key = "generic_switch"
+                self._attr_translation_placeholders = {
+                    "family": str(self.family),
+                    "id": str(self.ave_device_id),
+                }
+
+            if not hasattr(self, "_attr_translation_placeholders"):
+                self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
         else:
             self._name = name
 
@@ -254,7 +267,7 @@ class LightSwitch(SwitchEntity):
         return self._unique_id
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         """Return the name of the sensor."""
         return self._name
 
