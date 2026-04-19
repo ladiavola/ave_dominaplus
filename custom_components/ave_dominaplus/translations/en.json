@@ -116,9 +116,6 @@
   },
   "entity": {
     "binary_sensor": {
-      "antitheft_area": {
-        "name": "Antitheft Area {id}"
-      },
       "antitheft_sensor": {
         "name": "Antitheft Sensor {id}"
       }
