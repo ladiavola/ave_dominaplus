@@ -254,25 +254,10 @@ def build_endpoint_device_info(
     Device identifiers include the hub identifier to avoid collisions across hubs.
     """
     group_key = _endpoint_group_key(family, ave_device_id)
-    if group_key == _GROUP_ANTITHEFT_SENSORS:
-        endpoint_identifier = (
-            DOMAIN,
-            f"endpoint_{_hub_identifier(server)}_{group_key}_{ave_device_id}",
-        )
-        translation_key = group_key
-        device_name = None
-    elif group_key == _GROUP_ANTITHEFT_AREAS:
-        endpoint_identifier = (
-            DOMAIN,
-            f"endpoint_{_hub_identifier(server)}_{group_key}_{ave_device_id}",
-        )
-        translation_key = group_key
-        device_name = None
-    else:
-        endpoint_identifier = (
-            DOMAIN,
-            f"endpoint_{_hub_identifier(server)}_{group_key}",
-        )
+    endpoint_identifier = (
+        DOMAIN,
+        f"endpoint_{_hub_identifier(server)}_{group_key}",
+    )
 
     via_device = _hub_device_identifier(server)
     if family in (AVE_FAMILY_ONOFFLIGHTS, AVE_FAMILY_DIMMER):
@@ -289,7 +274,11 @@ def build_endpoint_device_info(
         via_device = _scenarios_parent_device_identifier(server)
 
     device_name: str | None = _endpoint_name(family, ave_device_id, ave_name)
-    translation_key: str | None = translation_key
+    translation_key: str | None = None
+
+    if group_key in (_GROUP_ANTITHEFT_SENSORS, _GROUP_ANTITHEFT_AREAS):
+        translation_key = group_key
+        device_name = None
 
     return DeviceInfo(
         identifiers={endpoint_identifier},
@@ -297,7 +286,6 @@ def build_endpoint_device_info(
         model=_endpoint_model(family),
         name=device_name,
         translation_key=translation_key,
-        translation_placeholders={"id": str(ave_device_id)},
         via_device=via_device,
         configuration_url=f"http://{server.settings.host}",
     )

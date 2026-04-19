@@ -105,10 +105,10 @@
       "name": "Dominaplus Thermostats"
     },
     "antitheft_sensors": {
-      "name": "Dominaplus Antitheft Sensor {id}"
+      "name": "Dominaplus Antitheft Sensors"
     },
     "antitheft_areas": {
-      "name": "Dominaplus Antitheft Area {id}"
+      "name": "Dominaplus Antitheft Areas"
     },
     "scenarios": {
       "name": "Dominaplus Scenarios"
@@ -117,10 +117,10 @@
   "entity": {
     "binary_sensor": {
       "antitheft_sensor": {
-        "name": "Sensor"
+        "name": "Antitheft Sensor {id}"
       },
       "antitheft_area": {
-        "name": "Area"
+        "name": "Antitheft Area {id}"
       },
       "scenario_running": {
         "name": "Scenario {id} Running"
