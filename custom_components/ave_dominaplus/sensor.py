@@ -237,7 +237,7 @@ class ThermostatOffset(SensorEntity):
         return self._unique_id
 
     @property
-    def name(self) -> str:
+    def name(self) -> str | None:
         """Return the name of the sensor."""
         return self._name
 
