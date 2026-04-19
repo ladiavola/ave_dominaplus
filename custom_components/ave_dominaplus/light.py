@@ -258,15 +258,13 @@ class DimmerLight(LightEntity):
             self._attr_supported_color_modes = {ColorMode.ONOFF}
             self._attr_color_mode = ColorMode.ONOFF
 
-        self._name = None
         if name is None:
             if self.family == AVE_FAMILY_ONOFFLIGHTS:
                 self._attr_translation_key = "light"
             else:
                 self._attr_translation_key = "dimmer"
-            self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
         else:
-            self._name = name
+            self._attr_name = name
 
         self._attr_is_on = False
         if is_on is not None and is_on >= 0:
@@ -355,11 +353,6 @@ class DimmerLight(LightEntity):
         return self._unique_id
 
     @property
-    def name(self) -> str | None:
-        """Return the name of the entity."""
-        return self._name
-
-    @property
     def available(self) -> bool:
         """Return if the backing webserver connection is available."""
         return self._webserver.connected
@@ -409,7 +402,7 @@ class DimmerLight(LightEntity):
         """Set the entity name."""
         if name is None:
             return
-        self._name = name
+        self._attr_name = name
         self._write_state_or_defer()
 
     def set_ave_name(self, name: str | None) -> None:

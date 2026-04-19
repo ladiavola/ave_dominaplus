@@ -349,18 +349,15 @@ class MotionBinarySensor(BinarySensorEntity):
         )
 
         self._attr_family = family
-        self._name = None
         if name is None:
             if self.family == AVE_FAMILY_MOTION_SENSOR:
-                self._attr_translation_key = "antitheft_sensor"
-                self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
+                self._attr_name = f"Sensor {self.ave_device_id}"
             elif self.family == AVE_FAMILY_ANTITHEFT_AREA:
-                self._attr_translation_key = "antitheft_area"
-                self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
+                self._attr_name = f"Area {self.ave_device_id}"
             else:
-                self._name = self.build_name()
+                self._attr_name = self.build_name()
         else:
-            self._name = name
+            self._attr_name = name
 
     async def async_added_to_hass(self) -> None:
         """Handle entity added to Home Assistant."""
@@ -376,11 +373,6 @@ class MotionBinarySensor(BinarySensorEntity):
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
         return self._unique_id
-
-    @property
-    def name(self) -> str | None:
-        """Return the name of the sensor."""
-        return self._name
 
     @property
     def available(self) -> bool:
@@ -431,7 +423,7 @@ class MotionBinarySensor(BinarySensorEntity):
         """Set the name of the sensor."""
         if name is None:
             return
-        self._name = name
+        self._attr_name = name
         if self.hass:
             self.async_write_ha_state()
 
@@ -486,12 +478,10 @@ class ScenarioRunningBinarySensor(BinarySensorEntity):
             ave_name=ave_name,
         )
 
-        self._name = None
         if name is None:
             self._attr_translation_key = "scenario_running"
-            self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
         else:
-            self._name = name
+            self._attr_name = name
 
     async def async_added_to_hass(self) -> None:
         """Handle entity added to Home Assistant."""
@@ -507,11 +497,6 @@ class ScenarioRunningBinarySensor(BinarySensorEntity):
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
         return self._unique_id
-
-    @property
-    def name(self) -> str | None:
-        """Return the name of the sensor."""
-        return self._name
 
     @property
     def available(self) -> bool:
@@ -561,7 +546,7 @@ class ScenarioRunningBinarySensor(BinarySensorEntity):
         """Set the name of the sensor."""
         if name is None:
             return
-        self._name = name
+        self._attr_name = name
         if self.hass:
             self.async_write_ha_state()
 

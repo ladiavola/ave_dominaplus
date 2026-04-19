@@ -84,12 +84,12 @@ def is_structural_parent_identifier(identifier: tuple[str, str]) -> bool:
 
 def _hub_identifier(server: AveWebServer) -> str:
     """Build a stable hub identifier for the device registry."""
+    if server.config_entry_id:
+        return server.config_entry_id
     if server.mac_address:
         return server.mac_address.lower()
     if server.config_entry_unique_id:
         return server.config_entry_unique_id.lower()
-    if server.config_entry_id:
-        return server.config_entry_id
     return server.settings.host
 
 

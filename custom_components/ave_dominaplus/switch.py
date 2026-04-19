@@ -1,4 +1,4 @@
-"""Binary sensor platform for AVE dominaplus integration."""
+"""Switch platform for AVE dominaplus integration."""
 
 import logging
 from typing import Any
@@ -214,7 +214,6 @@ class LightSwitch(SwitchEntity):
         if is_on is not None and is_on >= 0:
             self._attr_is_on = bool(is_on)  # Initialize the state
 
-        self._name = None
         if name is None:
             if self.family == AVE_FAMILY_ONOFFLIGHTS:
                 self._attr_translation_key = "light_switch"
@@ -230,7 +229,7 @@ class LightSwitch(SwitchEntity):
             if not hasattr(self, "_attr_translation_placeholders"):
                 self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
         else:
-            self._name = name
+            self._attr_name = name
 
     async def async_added_to_hass(self) -> None:
         """Handle entity added to Home Assistant."""
@@ -265,11 +264,6 @@ class LightSwitch(SwitchEntity):
     def unique_id(self) -> str:
         """Return the unique ID of the sensor."""
         return self._unique_id
-
-    @property
-    def name(self) -> str | None:
-        """Return the name of the sensor."""
-        return self._name
 
     @property
     def available(self) -> bool:
@@ -310,7 +304,7 @@ class LightSwitch(SwitchEntity):
         """Set the name of the sensor."""
         if name is None:
             return
-        self._name = name
+        self._attr_name = name
         self._write_state_or_defer()
 
     def set_ave_name(self, name: str | None) -> None:

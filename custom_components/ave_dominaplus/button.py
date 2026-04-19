@@ -205,12 +205,10 @@ class ScenarioButton(ButtonEntity):
             ave_name=ave_name,
         )
 
-        self._name = None
         if name is None:
             self._attr_translation_key = "scenario_run"
-            self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
         else:
-            self._name = name
+            self._attr_name = name
 
     async def async_added_to_hass(self) -> None:
         """Handle entity added to Home Assistant."""
@@ -230,11 +228,6 @@ class ScenarioButton(ButtonEntity):
     def unique_id(self) -> str:
         """Return the unique ID of the entity."""
         return self._unique_id
-
-    @property
-    def name(self) -> str | None:
-        """Return the name of the entity."""
-        return self._name
 
     @property
     def available(self) -> bool:
@@ -260,7 +253,7 @@ class ScenarioButton(ButtonEntity):
         """Set entity name."""
         if name is None:
             return
-        self._name = name
+        self._attr_name = name
         self._write_state_or_defer()
 
     def set_ave_name(self, name: str | None) -> None:

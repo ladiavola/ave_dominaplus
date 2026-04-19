@@ -277,7 +277,6 @@ class AveCover(CoverEntity):
 
         self._attr_device_class = CoverDeviceClass.SHUTTER
 
-        self._name = None
         if name is None:
             if self.family == AVE_FAMILY_SHUTTER_ROLLING:
                 self._attr_translation_key = "shutter"
@@ -287,9 +286,8 @@ class AveCover(CoverEntity):
                 self._attr_translation_key = "window"
             else:
                 self._attr_translation_key = "cover"
-            self._attr_translation_placeholders = {"id": str(self.ave_device_id)}
         else:
-            self._name = name
+            self._attr_name = name
 
         self._position = 3
         if position is not None:
@@ -360,11 +358,6 @@ class AveCover(CoverEntity):
         return self._unique_id
 
     @property
-    def name(self) -> str | None:
-        """Return the name of the entity."""
-        return self._name
-
-    @property
     def available(self) -> bool:
         """Return if the backing webserver connection is available."""
         return self._webserver.connected
@@ -426,7 +419,7 @@ class AveCover(CoverEntity):
         """Set the entity name."""
         if name is None:
             return
-        self._name = name
+        self._attr_name = name
         self._sync_device_info(name)
         self._write_state_or_defer()
 

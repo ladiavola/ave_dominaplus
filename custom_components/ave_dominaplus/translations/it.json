@@ -117,18 +117,18 @@
   "entity": {
     "binary_sensor": {
       "antitheft_sensor": {
-        "name": "Sensore Antintrusione {id}"
+        "name": "Sensore Antintrusione"
       },
       "antitheft_area": {
-        "name": "Area Antintrusione {id}"
+        "name": "Area Antintrusione"
       },
       "scenario_running": {
-        "name": "Esecuzione Scenario {id}"
+        "name": "In Esecuzione"
       }
     },
     "button": {
       "scenario_run": {
-        "name": "Esegui Scenario {id}"
+        "name": "Esegui"
       }
     },
     "light": {
