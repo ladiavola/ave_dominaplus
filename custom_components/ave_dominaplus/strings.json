@@ -131,7 +131,7 @@
     },
     "button": {
       "scenario_run": {
-        "name": "Run scenario {id}"
+        "name": "Scenario {id} Run"
       }
     },
     "light": {
