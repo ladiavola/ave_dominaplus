@@ -120,12 +120,12 @@
         "name": "Sensore Antintrusione {id}"
       },
       "scenario_running": {
-        "name": "Esecuzione Scenario {id}"
+        "name": "Scenario {id} in corso"
       }
     },
     "button": {
       "scenario_run": {
-        "name": "Esegui Scenario {id}"
+        "name": "Esegui scenario {id}"
       }
     },
     "light": {
