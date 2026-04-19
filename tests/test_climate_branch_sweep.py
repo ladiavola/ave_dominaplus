@@ -205,7 +205,7 @@ async def test_thermostat_entity_edge_paths_and_lifecycle(hass) -> None:
 
     assert thermostat.unique_id == "uid"
     assert thermostat.translation_key == "thermostat"
-    
+
     assert thermostat.available is False
 
     with (

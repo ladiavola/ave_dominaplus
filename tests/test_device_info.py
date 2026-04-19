@@ -136,7 +136,7 @@ def test_ensure_lighting_parent_device_registers_under_hub(hass) -> None:
         manufacturer="AVE",
         model="AVE dominaplus lighting",
         translation_key="lighting",
-            name=None,
+        name=None,
         via_device=(DOMAIN, "hub_aa:bb:cc:dd:ee:ff"),
         configuration_url="http://10.0.0.99",
     )
@@ -157,7 +157,7 @@ def test_ensure_scenarios_parent_device_registers_under_hub(hass) -> None:
         manufacturer="AVE",
         model="AVE dominaplus scenarios",
         translation_key="scenarios",
-            name=None,
+        name=None,
         via_device=(DOMAIN, "hub_aa:bb:cc:dd:ee:ff"),
         configuration_url="http://10.0.0.99",
     )
@@ -178,7 +178,7 @@ def test_ensure_covers_parent_device_registers_under_hub(hass) -> None:
         manufacturer="AVE",
         model="AVE dominaplus covers",
         translation_key="covers",
-            name=None,
+        name=None,
         via_device=(DOMAIN, "hub_aa:bb:cc:dd:ee:ff"),
         configuration_url="http://10.0.0.99",
     )
@@ -199,7 +199,7 @@ def test_ensure_thermostats_parent_device_registers_under_hub(hass) -> None:
         manufacturer="AVE",
         model="AVE dominaplus thermostats",
         translation_key="thermostats",
-            name=None,
+        name=None,
         via_device=(DOMAIN, "hub_aa:bb:cc:dd:ee:ff"),
         configuration_url="http://10.0.0.99",
     )
