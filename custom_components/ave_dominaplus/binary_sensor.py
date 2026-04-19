@@ -172,7 +172,7 @@ def _parse_motion_uid(unique_id: str) -> tuple[int, int] | None:
 
 def _scenario_running_name(ave_name: str) -> str:
     """Build scenario running entity name from AVE native name."""
-    return f"{ave_name} Running"
+    return ave_name
 
 
 def update_binary_sensor(

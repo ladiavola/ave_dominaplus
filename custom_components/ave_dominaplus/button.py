@@ -105,7 +105,7 @@ def set_button_uid(server: AveWebServer, family: int, ave_device_id: int) -> str
 
 def _format_button_name(ave_name: str) -> str:
     """Return the entity name derived from AVE native scenario name."""
-    return f"{ave_name} Run"
+    return ave_name
 
 
 def update_button(
