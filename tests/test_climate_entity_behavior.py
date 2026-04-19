@@ -38,7 +38,7 @@ def _new_server(hass: HomeAssistant) -> AveWebServer:
         "on_off_lights_as_switch": True,
     }
     server = AveWebServer(settings, hass)
-    return server
+    return server  # noqa: RET504
 
 
 def _props(

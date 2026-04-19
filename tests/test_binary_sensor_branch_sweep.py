@@ -24,7 +24,8 @@ from custom_components.ave_dominaplus.const import (
 )
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
 from homeassistant.exceptions import ConfigEntryNotReady
-from tests.web_server_harness import make_server
+
+from .web_server_harness import make_server
 
 
 def _entry(runtime_data, entry_id: str = "entry-1"):
@@ -466,7 +467,8 @@ async def test_scenario_running_sensor_lifecycle_and_state_branches(hass) -> Non
     )
     sensor.async_write_ha_state = Mock()
 
-    assert sensor.name == "Scenario 12 Running"
+    assert sensor.translation_key == "scenario_running"
+    assert sensor.translation_placeholders == {"id": "12"}
     assert sensor.unique_id == "uid-scenario"
     assert sensor.available is True
     assert sensor.is_on is False

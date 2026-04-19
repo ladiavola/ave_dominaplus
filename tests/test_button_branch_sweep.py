@@ -17,7 +17,8 @@ from custom_components.ave_dominaplus.button import (
 )
 from custom_components.ave_dominaplus.const import AVE_FAMILY_SCENARIO
 from homeassistant.exceptions import ConfigEntryNotReady
-from tests.web_server_harness import make_server
+
+from .web_server_harness import make_server
 
 
 def _entry(runtime_data, entry_id: str = "entry-1"):
@@ -257,7 +258,8 @@ def test_scenario_button_properties_and_state_write_paths(hass) -> None:
     button.async_write_ha_state = Mock()
 
     assert button.unique_id == "uid"
-    assert button.name == "Scenario 7 Run"
+    assert button.translation_key == "scenario_run"
+    assert button.translation_placeholders == {"id": "7"}
     assert button.available is True
     assert button.extra_state_attributes == {
         "AVE_family": AVE_FAMILY_SCENARIO,

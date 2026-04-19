@@ -16,9 +16,13 @@ from custom_components.ave_dominaplus.config_flow import (
 )
 from custom_components.ave_dominaplus.const import DOMAIN
 from homeassistant import config_entries, data_entry_flow
+
+try:
+    from homeassistant.components.zeroconf import ZeroconfServiceInfo
+except ImportError:
+    from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.const import CONF_IP_ADDRESS
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 MOCK_USER_INPUT: dict[str, object] = {
     CONF_IP_ADDRESS: "192.168.1.10",
@@ -729,9 +733,9 @@ async def test_validate_input_requires_mac_for_discovery(hass: HomeAssistant) ->
             return_value=mock_webserver,
         ),
         patch.object(flow, "_configure_unique_id", new=AsyncMock(return_value="")),
+        pytest.raises(MacAddressNotFound),
     ):
-        with pytest.raises(MacAddressNotFound):
-            await flow.validate_input(MOCK_USER_INPUT, require_mac_address=True)
+        await flow.validate_input(MOCK_USER_INPUT, require_mac_address=True)
 
 
 async def test_validate_input_returns_with_empty_mac_when_not_required(
