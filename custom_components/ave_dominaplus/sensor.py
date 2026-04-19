@@ -249,7 +249,7 @@ class ThermostatOffset(SensorEntity):
     @property
     def device_class(self) -> SensorDeviceClass | None:
         """Return the device class of the sensor."""
-        return SensorDeviceClass.TEMPERATURE_DELTA
+        return SensorDeviceClass.TEMPERATURE
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
